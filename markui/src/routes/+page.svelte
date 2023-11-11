@@ -143,7 +143,7 @@
 	}
 
 	enum Cmd {
-		ScanAll = 0x0,
+		Test = 0x0,
 		ScanRow = 0x1,
 		ScanCol = 0x2,
 		MoveTo = 0x3, // Expects two more numbers
