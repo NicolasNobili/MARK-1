@@ -49,6 +49,12 @@ config_timer1:
 	ldi temp , LOW(MAX_OCR1A) ; = 24000 (empieza con duty cicle de 0.5ms/25ms)
 	sts OCR1Al,temp
 
+	ldi temp , HIGH(MAX_OCR1B)
+	sts OCR1BH ,temp
+	ldi temp , LOW(MAX_OCR1B) ; = 24000 (empieza con duty cicle de 0.5ms/25ms)
+	sts OCR1Bl,temp
+
+
 	ldi temp , 0b1111_0010 ; "Set OC1A/OC1B on compare match when up-counting. Clear OC1A/OC1B on compare match when down-counting."
 	sts TCCR1A,temp 
 	ldi temp , 0b001_0010

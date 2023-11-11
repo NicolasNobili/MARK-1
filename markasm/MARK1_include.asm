@@ -11,6 +11,8 @@
 .equ TOP_PWM = int( (16000000/8) * 0.02 /2 ); 20000 perido de 20ms (prescaler  = 8)
 .equ MAX_OCR1A = int(TOP_PWM - TOP_PWM * 0.0005 /0.020)  ; 19500 (ancho pulso = 0.5ms)
 .equ MIN_OCR1A =int(TOP_PWM - TOP_PWM * 0.0025 /0.020) ; 17500 (ancho pulso = 2.5ms)
+.equ MAX_OCR1B = int(TOP_PWM - TOP_PWM * 0.0005 /0.020)  ; 19500 (ancho pulso = 0.5ms)
+.equ MIN_OCR1B =int(TOP_PWM - TOP_PWM * 0.0025 /0.020) ; 17500 (ancho pulso = 2.5ms)
 
 .equ UBRR0 = 103
 
