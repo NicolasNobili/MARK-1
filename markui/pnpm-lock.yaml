@@ -1,6 +1,9 @@
 lockfileVersion: '6.0'
 
 dependencies:
+  collections:
+    specifier: ^5.1.13
+    version: 5.1.13
   serialport:
     specifier: ^12.0.0
     version: 12.0.0
@@ -18,6 +21,9 @@ devDependencies:
   '@sveltejs/kit':
     specifier: ^1.20.4
     version: 1.20.4(svelte@4.0.5)(vite@4.4.2)
+  '@types/collections':
+    specifier: ^5.1.5
+    version: 5.1.5
   '@types/three':
     specifier: ^0.158.2
     version: 0.158.2
@@ -570,6 +576,10 @@ packages:
       - supports-color
     dev: true
 
+  /@types/collections@5.1.5:
+    resolution: {integrity: sha512-gLSFHjr7XTZJ6VQnD0Gn0NfhV/B0rhyWvFokV4iT0++2ccLeMTdxO9y9joVFYYMdn0BT24rkkjM8HLW5gSGh5g==}
+    dev: true
+
   /@types/cookie@0.5.4:
     resolution: {integrity: sha512-7z/eR6O859gyWIAjuvBWFzNURmf2oPBmJlfVWkwehU5nzIyjwBsTh7WMmEEV4JFnHuQ3ex4oyTvfKzcyJVDBNA==}
     dev: true
@@ -932,6 +942,12 @@ packages:
       estree-walker: 3.0.3
       periscopic: 3.1.0
     dev: true
+
+  /collections@5.1.13:
+    resolution: {integrity: sha512-SCb6Qd+d3Z02corWQ7/mqXiXeeTdHvkP6TeFSYfGYdCFp1WrjSNZ3j6y8Y3T/7osGEe0iOcU2g1d346l99m4Lg==}
+    dependencies:
+      weak-map: 1.0.8
+    dev: false
 
   /color-convert@2.0.1:
     resolution: {integrity: sha512-RRECPsj7iu/xb5oKYcsFHSppFNnsj/52OVTRKb4zP5onXwVF3zVmmToNcOfGC+CRDpfK/U584fMg38ZHCaElKQ==}
@@ -2432,6 +2448,10 @@ packages:
     dependencies:
       vite: 4.4.2
     dev: true
+
+  /weak-map@1.0.8:
+    resolution: {integrity: sha512-lNR9aAefbGPpHO7AEnY0hCFjz1eTkWCXYvkTRrTHs9qv8zJp+SkVYpzfLIFXQQiG3tVvbNFQgVg2bQS8YGgxyw==}
+    dev: false
 
   /which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}

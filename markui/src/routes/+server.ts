@@ -1,32 +1,30 @@
-import { json } from "@sveltejs/kit"
+import { json } from "@sveltejs/kit";
+import { SerialPort } from "serialport";
 
-let x = 0;
-let y = 0;
-let direction = 1;
+const COMPORT = 4;
+const baudRate = 9600;
+const newLine = "\n";
 
-function test(a: number, b: number) {
-    return a + b + 155;
-}
+let queue: Buffer[] = [];
+const port = new SerialPort({ path: `\\\\.\\COM${COMPORT}`, baudRate: baudRate });
+
+port.on("readable", function () {
+    queue.push(port.read());
+})
 
 export function GET() {
-    x = x + direction
-    if (x >= 50) {
-        x = 49;
-        direction = -1;
-        y = (y + 1) % 50;
-    } else if (x < 0) {
-        x = 0;
-        direction = 1;
-        y = (y + 1) % 50;
+    if (queue.length === 0) {
+        return json({ bytes: "" });
     }
 
-    return json({
-        x: x,
-        y: y,
-        p: test(x, y),
-    });
+    let data = queue.shift();
+    return json({ bytes: data?.toString() });
 }
 
-export function POST() {
-    
+export async function POST({ request }) {
+    const { cmd } = await request.json();
+
+    port.write(cmd + newLine);
+
+	return json({ status: 201 });
 }

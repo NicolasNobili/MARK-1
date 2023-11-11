@@ -10,15 +10,16 @@
 	let x = 50;
 	let y = 50;
 	let p = 0;
-    let command = "";
+    let sent_command = "";
+	let recv_command = "";
 
 	let pitch = 0;
 	let yaw = 0;
 	let opacity = -1;
 	let pollMilliseconds = 20;
 
-	const M = 50;
-	const N = 50;
+	const M = 21;
+	const N = 21;
 
 	let depthMap = new Uint8Array(M * N);
 	let recencyMap = new Uint8Array(M * N);
@@ -65,10 +66,17 @@
 	}
 
 	async function pollData() {
-		const response = await (await fetch('/')).json();
-		x = response.x;
-		y = response.y;
-		p = response.p;
+		// @ts-ignore
+		const response: string = (await (await fetch('/')).json()).bytes;
+
+		if (response === "") {
+			return
+		}
+
+		x = response.charCodeAt(0);
+		y = response.charCodeAt(1);
+		p = response.charCodeAt(2);
+		recv_command = response;
 		depthMap[x + N * y] = 255 - p;
         recencyMap[x + N * y] = 0xff;
         pitch = (x - M/2) / M * 3.14;
@@ -129,7 +137,7 @@
 		}
 
 		// pitch += 0.005;
-		yaw += 0.005;
+		// yaw += 0.005;
 
 		renderer.clear();
 		renderer.render(scene, camera);
@@ -143,16 +151,20 @@
 	}
 
 	enum Cmd {
-		Test = 0x0,
-		ScanRow = 0x1,
-		ScanCol = 0x2,
-		MoveTo = 0x3, // Expects two more numbers
-		ToggleLaser = 0x4,
-		ToggleMode = 0x5,
+		ScanRow = "s",
 	}
 
-	function sendCommand() {
+	async function sendCommand(cmd: Cmd) {
+		console.log("Mandando: " + cmd);
+		sent_command = cmd;
 
+		const response = await fetch('/', {
+			method: 'POST',
+			body: JSON.stringify({ cmd }),
+			headers: {
+				'content-type': 'application/json'
+			}
+		});
 	}
 </script>
 
@@ -181,7 +193,7 @@
 	</div>
 	<div class="col-start-1 row-start-2 row-span-2 flex flex-col h-full w-full justify-evenly p-20">
 		{#key ready}
-			<button
+			<button on:click={() => sendCommand(Cmd.ScanRow)}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 600 }}
 			>
@@ -232,7 +244,9 @@
             <br />
             Profundidad: {p}
             <br />
-            Último comando enviado: {command}
+            Último comando enviado: {sent_command}
+			<br />
+			Últimos datos recibidos: {recv_command}
         </p>
 	</div>
 	<div class="col-start-3 row-start-3 h-full w-full p-10">
