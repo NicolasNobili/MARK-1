@@ -41,6 +41,7 @@ main:
 	rcall config_timer0
 	rcall config_timer1
 	rcall config_USART
+	rcall config_extint
 	
 	sei
 

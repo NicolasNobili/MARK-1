@@ -24,8 +24,7 @@ config_extint:
     sts EICRA, temp 
 
     ; Habilitar interrupción
-    ldi temp, (1 << INT0)
-    out EIMSK, temp
+	sbi EIMSK, INT0
 
     ret
 
@@ -66,13 +65,6 @@ config_timer1:
     rcall actualizar_OCR1A
     rcall actualizar_OCR1B
 
-    ; Configurar valor inicial del duty cycle para PWM-B
-    ; REHACER
-	ldi temp, HIGH(MAX_OCR1B)
-	sts OCR1BH, temp
-	ldi temp, LOW(MAX_OCR1B)
-	sts OCR1Bl, temp
-
     ; Set OC1A/OC1B on compare match when up-counting.
     ; Clear OC1A/OC1B on compare match when down-counting.
     ; Phase Correct PWM, top en ICR1
@@ -80,7 +72,7 @@ config_timer1:
 	sts TCCR1A, temp 
 
     ; Phase Correct PWM, top en ICR1, prescaler 1/8
-	ldi temp, (1 << WGM13) | (0 << WGM12) | (0 << CS12) | (1 << CS12) | (0 << CS12)
+	ldi temp, (1 << WGM13) | (0 << WGM12) | (0 << CS12) | (1 << CS11) | (0 << CS10)
 	sts TCCR1B, temp
 
 	ret
