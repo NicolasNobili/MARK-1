@@ -69,6 +69,15 @@
     <Compile Include="main.asm">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="MARK1_config.asm">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MARK1_handlers.asm">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MARK1_include.asm">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Assembler.targets" />
 </Project>
