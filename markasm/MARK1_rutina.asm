@@ -58,9 +58,15 @@ stop_timer2:
 ; ------------------------------------------------------
 
 send_trigger:
+	;Limpiar flag de PCI0 y activar la interrupcion
+	sbi PCIFR,PCIF0
+	 
+	lds temp,PCICR
+	ori temp,(1 << PCIE0)
+	sts PCICR,temp
+	
 	sbi PORTB, ULTRASOUND_TRIG
 	ldi temp, LOOPS_TRIGGER
-
 loop_trig:
 	dec temp
 	brne loop_trig
@@ -87,6 +93,9 @@ send_data:
     cpi data_type, CURRENT_POSITION
     breq send_position
 
+	cpi data_type, DEBUG
+	breq send_debug
+
     ; No hace falta mandar bytes extra
     rjmp send_data_end
 
@@ -109,6 +118,12 @@ send_position:
     rcall send_byte
 
     rjmp send_data_end
+
+send_debug:
+	mov tempbyte, count_ovfs
+    rcall send_byte
+
+	rjmp send_data_end
 
 send_data_end:
     ret

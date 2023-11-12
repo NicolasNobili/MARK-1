@@ -64,6 +64,8 @@ objetivo_apagar_laser:
 	cbi PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     rcall send_data
+	ldi data_type, DONE
+	rcall send_data
 
 	rcall stop_timer0
 	ldi estado, IDLE
@@ -275,10 +277,19 @@ process_measure:
     ; Flanco descendiente, termina la lectura
 	rcall stop_timer2
 
+	;Desactivar interrupcion PCI0
+	lds temp,PCICR
+	andi temp,~(1<<PCIE0)
+	sts PCICR,temp
+
     ; Convertir la lectura a 1 byte
+	ldi data_type,DEBUG
+	rcall send_data
+
 	lds temp, TCNT2
 	lsr count_ovfs
-	ror lectura
+	ror temp
+	mov lectura,temp
 	
     ; Comparar con mínimo
 	cp lectura, min_dist

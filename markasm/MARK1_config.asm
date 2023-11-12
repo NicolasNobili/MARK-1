@@ -44,10 +44,6 @@ config_int0:
 
 
 config_pci0:
-    ; Habilitar interrupción
-	ldi temp, (1 << PCIE0)
-	sts PCICR, temp
-
     ; Habilitar pin de ECHO
 	ldi temp, (1 << ULTRASOUND_ECHO)
 	sts PCMSK0, temp

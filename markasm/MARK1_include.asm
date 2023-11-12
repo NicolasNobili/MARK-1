@@ -46,7 +46,7 @@
 .equ DELAY_LASER      = 0xFF
 
 ; Objetivo: 10 us
-.equ LOOPS_TRIGGER = 60
+.equ LOOPS_TRIGGER = 55
 
 
 ; ------------------------------------------------------
@@ -104,6 +104,7 @@
 .equ LASER_ON         = 'j'
 .equ LASER_OFF        = 'k'
 .equ PONG             = 'b'
+.equ DEBUG            = 'o'
 
 
 ; ------------------------------------------------------
