@@ -25,14 +25,13 @@
 		Position    = "p", // Expects 2 more numbers
 		LaserOn     = "j",
 		LaserOff    = "k",
-		Measurement = "a", // Expects 3 more numbers
+		Measurement = "m", // Expects 3 more numbers
 		Pong        = "b",
 		Debug       = "o",
 	}
 
 	// Transmission of Data
 	let tx = "";
-	$: tx_hex = string_to_hex_string(tx);
 
 	// Serial communication
 	let port: any;
@@ -41,20 +40,18 @@
 	let pollInterval: NodeJS.Timeout;
 
 	// Reception of Data
-	let data_complete = 0;
+	let rx_queue = "";
 	let rx = "";
 	let angle_fr = false;
 	let laser_fr = false;
 	let debug = "";
-	$: rx_hex = string_to_hex_string(rx);
-	$: debug_hex = string_to_hex_string(debug);
 
 	// Angle A
 	const N = 21;
 	let x = 0;
 	let smoothx = tweened(x, {easing: cubicOut});
 	$: $smoothx = x;
-	$: yaw = $smoothx;
+	$: yaw = ($smoothx / N - 0.5) * Math.PI;
 	$: if (model) model.rotation.z = yaw;
 
 	// Angle B
@@ -62,7 +59,7 @@
 	let y = 0;
 	let smoothy = tweened(y, {easing: cubicOut});
 	$: $smoothy = y;
-	$: pitch = $smoothy - 3.14 / 2;
+	$: pitch = ($smoothy / M - 1) * Math.PI;
 	$: if (model) model.rotation.x = pitch;
 
 	// Measurement, depth
@@ -94,11 +91,26 @@
 		for (let i = 0; i < s.length; i++) {
 			const charCode = s.charCodeAt(i);
 			const hexAscii = charCode.toString(16).toUpperCase();
-			hexAsciiArray.push(hexAscii);
+			const paddedHexAscii = hexAscii.length === 1 ? '0' + hexAscii : hexAscii;
+			hexAsciiArray.push(paddedHexAscii);
 		}
 
 		return hexAsciiArray.join(' ');
 	}		
+
+	function ascii_to_pictures(s: string) {
+		let ans = "";
+
+		for (let i = 0; i < s.length; i++) {
+			let charCode = s.charCodeAt(i);
+			if (charCode >= 0 && charCode <= 26) {
+				charCode += 0x2400 - 1;
+			}
+			ans += String.fromCharCode(charCode);
+		}
+
+		return ans;
+	}
 
 	function draw() {
 		if (!screen) {
@@ -155,69 +167,77 @@
 	}
 
 
+	// Flushes RX as much as possible
+	// If there is an incomplete command, it leaves it there
+	async function flush_rx_queue() {
 
-	async function interpret_rx() {
-		data_complete = 0;
-		const l = rx.length;
-		if (l === 0) {
-			return;
-		}
+		let cannotFlush = false;
+		while (rx_queue.length > 0) {
+			const data_type: Data = rx_queue[0] as Data;
+			const len = rx_queue.length;
+			let bytes_to_flush = 1;
 
-		const data_type: Data = rx[0] as Data;
+			switch (data_type) {
+				case Data.Measurement:
+					if (len >= 4) {
+						bytes_to_flush = 4;
+						x = rx_queue.charCodeAt(1);
+						y = rx_queue.charCodeAt(2);
+						p = rx_queue.charCodeAt(3);
+						depthMap[x + N * y] = 255 - p;
+						recencyMap[x + N * y] = 255;
+						angle_fr = true;
+					} else {
+						cannotFlush = true;
+					}
+					break;
 
-		switch (data_type) {
-			case Data.Measurement:
-				if (l >= 4) {
-					data_complete = 4;
-					x = rx.charCodeAt(1);
-					y = rx.charCodeAt(2);
-					p = rx.charCodeAt(3);
-					depthMap[x + N * y] = 255 - p;
-					recencyMap[x + N * y] = 255;
-					angle_fr = true;
-				}
+				case Data.Position:
+					if (len >= 3) {
+						bytes_to_flush = 3;
+						x = rx_queue.charCodeAt(1);
+						y = rx_queue.charCodeAt(2);
+						p = null;
+						angle_fr = true;
+					} else {
+						cannotFlush = true;
+					}
+					break;
+
+				case Data.Done:
+					break;
+
+				case Data.LaserOn:
+					laser = true;
+					laser_fr = true;
+					break;
+
+				case Data.LaserOff:
+					laser = false;
+					laser_fr = true;
+					break;
+
+				case Data.Pong:
+					break;
+
+				case Data.Debug:
+					if (len >= 2) {
+						bytes_to_flush = 2;
+					} else {
+						cannotFlush = true;
+					}
+					break;
+
+				default:
+					// Unknown command, just get rid of it
+			}
+
+			if (cannotFlush) {
 				break;
+			}
 
-			case Data.Position:
-				if (l >= 3) {
-					data_complete = 3;
-					x = rx.charCodeAt(1);
-					y = rx.charCodeAt(2);
-					p = null;
-					angle_fr = true;
-				}
-				break;
-
-			case Data.Done:
-				data_complete = 1;
-				break;
-
-			case Data.LaserOn:
-				laser = true;
-				laser_fr = true;
-				data_complete = 1;
-				break;
-
-			case Data.LaserOff:
-				laser = false;
-				laser_fr = true;
-				data_complete = 1;
-				break;
-
-			case Data.Pong:
-				data_complete = 1;
-				break;
-
-			case Data.Debug:
-				if (l >= 2) {
-					data_complete = 2;
-					debug = rx.substring(0, 2);
-				}
-				break;
-
-			default:
-				// Unknown command, just get rid of it
-				data_complete = 1;
+			rx = rx_queue.substring(0, bytes_to_flush);
+			rx_queue = rx_queue.substring(bytes_to_flush);
 		}
 	}
 
@@ -266,13 +286,9 @@
 
 		try {
 			const readerData = await reader.read();
-			if (data_complete > 0) {
-				rx = rx.substring(data_complete);
-				rx += new TextDecoder().decode(readerData.value);
-			} else {
-				rx += new TextDecoder().decode(readerData.value);
-			}
-			interpret_rx();
+			const readData = new TextDecoder().decode(readerData.value);
+			rx_queue += readData;
+			flush_rx_queue();
 		} catch (err) {
 			const errorMessage = `error reading data: ${err}`;
 			console.error(errorMessage);
@@ -281,10 +297,14 @@
 	}
 
 	async function toggleLaser() {
-		if (laser) {
-			writeData(Cmd.TurnOffLaser)
+		if (laser_fr) {
+			if (laser) {
+				writeData(Cmd.TurnOffLaser)
+			} else {
+				writeData(Cmd.TurnOnLaser)
+			}
 		} else {
-			writeData(Cmd.TurnOnLaser)
+			writeData(Cmd.AskLaser)
 		}
 	}
 
@@ -404,11 +424,11 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button disabled={!port || !laser_fr} on:click={toggleLaser}
+			<button disabled={!port} on:click={toggleLaser}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 900 }}
 			>
-				{laser ? 'Apagar' : 'Prender'} láser
+				{laser_fr ? (laser ? 'Apagar' : 'Prender') : "Consultar"} láser
 			</button>
 		{/key}
 	</div>
@@ -417,21 +437,23 @@
 		<canvas class="h-full w-full" bind:this={screen} />
 	</div>
 
-	<div class="col-start-3 row-start-2 h-full w-full gird place-items-center p-20">
+	<div class="col-start-3 row-start-2 h-full w-full gird place-items-center py-20">
         <p class="text-lg">
-            Ángulo A: {angle_fr ? x : ""}
+            <span class="underline">Ángulo A:</span> {angle_fr ? x : ""}
             <br />
-			Ángulo B: {angle_fr ? y : ""}
+			<span class="underline">Ángulo B:</span> {angle_fr ? y : ""}
 			<br />
-            Profundidad: {p ? p : ""}
+            <span class="underline">Profundidad:</span> {p ? p : ""}
             <br />
-			Láser: {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
+			<span class="underline">Láser:</span> {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
 			<br />
-            Último comando enviado: {tx} - {tx_hex}
+            <span class="underline">Último comando enviado:</span> <span class="font-mono">{ascii_to_pictures(tx)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(tx)}</span>
 			<br />
-			Últimos datos recibidos: {rx} - {rx_hex}
+			<span class="underline">Último dato recibido:</span> <span class="font-mono">{ascii_to_pictures(rx)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(rx)}</span>
 			<br />
-			Último debug: {debug} - {debug_hex}
+			<span class="underline">Último debug:</span> <span class="font-mono">{ascii_to_pictures(debug)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(debug)}</span>
+			<br />
+			<span class="underline">Cola de lectura:</span> <span class="font-mono">{ascii_to_pictures(rx_queue)}</span><span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(rx_queue)}</span>
         </p>
 	</div>
 
