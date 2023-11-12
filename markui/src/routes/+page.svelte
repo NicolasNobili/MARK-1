@@ -125,7 +125,7 @@
 		tx = cmd;
 		const encoder = new TextEncoder();
 		const writer = port.writable.getWriter();
-		await writer.write(encoder.encode(cmd));
+		await writer.write(encoder.encode(cmd + "\r\n"));
 		writer.releaseLock();
 	}
 
