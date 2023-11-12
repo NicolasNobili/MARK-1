@@ -88,12 +88,14 @@
 ; ------------------------------------------------------
 
 ; COMANDOS:
-.equ ABORT        = 'a'
-.equ SCAN_ROW     = 's'
-.equ MEDIR_DIST   = 'm'
-.equ PING         = 'b'
-.equ ASK_POSITION = 'p'
-.equ ASK_LASER    = 'l'
+.equ ABORT          = 'a'
+.equ SCAN_ROW       = 's'
+.equ MEDIR_DIST     = 'm'
+.equ PING           = 'b'
+.equ ASK_POSITION   = 'p'
+.equ ASK_LASER      = 'l'
+.equ TURN_ON_LASER  = 'c'
+.equ TURN_OFF_LASER = 'd'
 
 ; DATA TYPES:
 .equ DONE             = 'f'

@@ -132,6 +132,12 @@ handler_URXC:
 	cpi temp, MEDIR_DIST
 	breq comando_medir_dist
 
+    cpi temp, TURN_ON_LASER
+    breq comando_turn_on_laser
+
+    cpi temp, TURN_OFF_LASER
+    breq comando_turn_off_laser
+
     ; Comando desconocido
     rjmp handler_URXC_end
 
@@ -194,6 +200,22 @@ comando_medir_dist:
     ; Queremos medir solo una vez
 	ldi estado, MEDIR
 	ldi objetivo, SINGLE_MEASURE
+
+    rjmp handler_URXC_end
+
+comando_turn_on_laser:
+	; Encender láser y notificar cambio de estado
+	sbi PORTD, LASER_PIN
+    ldi data_type, LASER_ON
+    rcall send_data
+
+    rjmp handler_URXC_end
+
+comando_turn_off_laser:
+	; Apagar láser y notificar cambio de estado
+	cbi PORTD, LASER_PIN
+    ldi data_type, LASER_OFF
+    rcall send_data
 
     rjmp handler_URXC_end
 
