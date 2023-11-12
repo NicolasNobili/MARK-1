@@ -431,6 +431,14 @@
 				{laser_fr ? (laser ? 'Apagar' : 'Prender') : "Consultar"} láser
 			</button>
 		{/key}
+		{#key ready}
+			<button disabled={!port} on:click={() => writeData(Cmd.Abort)}
+				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
+				in:fly={{ x: 30, duration: 500, delay: 900 }}
+			>
+				Abortar
+			</button>
+		{/key}
 	</div>
 
 	<div class="col-start-2 row-start-2 row-span-2 h-full w-full grid place-items-center p-20">
