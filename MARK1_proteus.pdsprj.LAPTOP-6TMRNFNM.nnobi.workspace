@@ -3,12 +3,13 @@
  <FRAME activewindow="0">
   <PLACEMENT>2c00000002000000030000000083ffff0083fffffffffffffffffffff9ffffff00000000bb06000058040000</PLACEMENT>
   <WINDOW type="default" module="ISIS">
-   <editor metric="0" gridmajor="2540000" mode="00000001" zoom="-1" scale="135" flipped="0" gridminor="254000" gridmode="16" snapidx="2" snap="254000" xcursor="0" orgmode="0" snaprange="127000">
+   <editor metric="0" gridmajor="2540000" mode="00000000" zoom="0" scale="135" flipped="0" gridminor="254000" gridmode="16" snapidx="2" snap="254000" xcursor="0" orgmode="0" snaprange="127000">
     <world y1="-8890000" x1="-12700000" y2="8890000" x2="12700000"/>
-    <centre x="0" y="9407"/>
+    <centre x="0" y="0"/>
     <origin x="0" y="0"/>
    </editor>
   </WINDOW>
+  <WINDOW type="device" module="LIBMAN"/>
  </FRAME>
  <MODULE name="ARES">
   <editor metric="1" gridmajor="0" mode="00000000" zoom="10" scale="10" flipped="0" gridminor="0" gridmode="32" snapidx="3" snap="0" xcursor="0" orgmode="0" snaprange="0">
@@ -18,17 +19,17 @@
   </editor>
  </MODULE>
  <MODULE name="ISIS">
-  <editor metric="0" gridmajor="2540000" mode="00000001" zoom="-1" scale="135" flipped="0" gridminor="254000" gridmode="16" snapidx="2" snap="254000" xcursor="0" orgmode="0" snaprange="127000">
+  <editor metric="0" gridmajor="2540000" mode="00000000" zoom="0" scale="135" flipped="0" gridminor="254000" gridmode="16" snapidx="2" snap="254000" xcursor="0" orgmode="0" snaprange="127000">
    <world y1="-8890000" x1="-12700000" y2="8890000" x2="12700000"/>
-   <centre x="0" y="9407"/>
+   <centre x="0" y="0"/>
    <origin x="0" y="0"/>
   </editor>
  </MODULE>
  <MODULE name="VSMDEBUG">
   <PWI>
-   <POPUP w="800" x="48" flags="00000002" y="160" h="200" pid="0" iid="-1">
+   <POPUP w="679" x="163" flags="00000002" y="476" h="562" pid="0" iid="-1">
     <PROPERTIES>
-     <ITEM name="Message Column Width">661</ITEM>
+     <ITEM name="Message Column Width">419</ITEM>
      <ITEM name="ShowGrid">No</ITEM>
      <ITEM name="Source Column Width">100</ITEM>
      <ITEM name="Time Column Width">120</ITEM>
@@ -57,7 +58,7 @@
      <ITEM name="nItems">5</ITEM>
     </PROPERTIES>
    </POPUP>
-   <POPUP w="30" x="88" flags="00000008" y="200" h="16" pid="3" iid="1">
+   <POPUP w="30" x="512" flags="00000008" y="174" h="16" pid="3" iid="1">
     <PROPERTIES/>
    </POPUP>
    <POPUP w="8" x="108" flags="0000000a" y="220" h="1" pid="10" iid="1">
@@ -90,7 +91,7 @@
      <ITEM name="TopLineAddress">00000000</ITEM>
     </PROPERTIES>
    </POPUP>
-   <POPUP w="16" x="168" flags="80000000" y="280" h="32" pid="14" iid="1">
+   <POPUP w="16" x="168" flags="00000000" y="280" h="32" pid="14" iid="1">
     <PROPERTIES>
      <ITEM name="DataType">2</ITEM>
      <ITEM name="DispChars">Yes</ITEM>
@@ -120,7 +121,7 @@
      <ITEM name="TopLineAddress">00000050</ITEM>
     </PROPERTIES>
    </POPUP>
-   <POPUP w="791" x="527" flags="0000000a" y="526" h="400" pid="1" iid="1">
+   <POPUP w="1034" x="643" flags="0000000a" y="88" h="1052" pid="1" iid="1">
     <PROPERTIES/>
    </POPUP>
    <POPUP w="300" x="248" flags="0000000a" y="360" h="300" pid="2" iid="1">
@@ -140,7 +141,7 @@
      <ITEM name="nItems">0</ITEM>
     </PROPERTIES>
    </POPUP>
-   <POPUP w="450" x="1300" flags="00008023" y="217" h="250" pid="0" iid="7">
+   <POPUP w="528" x="1232" flags="00008023" y="311" h="250" pid="0" iid="7">
     <PROPERTIES>
      <ITEM name="AutoEcho">0</ITEM>
      <ITEM name="HexMode">0</ITEM>
@@ -149,5 +150,19 @@
   </PWI>
   <BREAKPOINT LINE="83" ENABLED="FALSE" FILE="../../../../../Desktop/FIUBA/LaboDeMicro/Trabajos_Practicos/TP3/TrabajoPractico3/TrabajoPractico3/parte2_Nobili_V1.asm" ADDRESS="4294967295" PROJECT="1"/>
   <BREAKPOINT LINE="19" ENABLED="FALSE" FILE="markasm/main.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="64" ENABLED="FALSE" FILE="markasm/main.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="37" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="75" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="112" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="143" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="144" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="145" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="146" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="147" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="148" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="170" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="191" ENABLED="FALSE" FILE="markasm/MARK1_handlers.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="10" ENABLED="FALSE" FILE="markasm/MARK1_servos.asm" ADDRESS="4294967295" PROJECT="1"/>
+  <BREAKPOINT LINE="21" ENABLED="FALSE" FILE="markasm/MARK1_servos.asm" ADDRESS="4294967295" PROJECT="1"/>
  </MODULE>
 </WORKSPACE>
