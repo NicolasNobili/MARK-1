@@ -6,11 +6,11 @@ const baudRate = 9600;
 const newLine = "\n";
 
 let queue: Buffer[] = [];
-const port = new SerialPort({ path: `\\\\.\\COM${COMPORT}`, baudRate: baudRate });
+// const port = new SerialPort({ path: `\\\\.\\COM${COMPORT}`, baudRate: baudRate });
 
-port.on("readable", function () {
-    queue.push(port.read());
-})
+//port.on("readable", function () {
+//    queue.push(port.read());
+//})
 
 export function GET() {
     if (queue.length === 0) {
@@ -24,7 +24,7 @@ export function GET() {
 export async function POST({ request }) {
     const { cmd } = await request.json();
 
-    port.write(cmd + newLine);
+    // port.write(cmd + newLine);
 
 	return json({ status: 201 });
 }

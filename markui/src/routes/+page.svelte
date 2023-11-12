@@ -4,19 +4,31 @@
 	import * as THREE from 'three';
 	import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
+	enum Cmd {
+		ScanRow = "s",
+	}
+
+	enum Data {
+		Measurement = "a", // Expects 3 more numbers
+	}
+
+	let port: any;
+	let reader: any;
+	let data_complete = 0;
+
 	let screen: HTMLCanvasElement;
 	let polls = 0;
 
-	let x = 50;
-	let y = 50;
+	let x = 0;
+	let y = 0;
 	let p = 0;
-    let sent_command = "";
-	let recv_command = "";
+    let tx = "";
+	let rx = "";
 
 	let pitch = 0;
 	let yaw = 0;
 	let opacity = -1;
-	let pollMilliseconds = 20;
+	let pollMilliseconds = 10;
 
 	const M = 21;
 	const N = 21;
@@ -65,6 +77,81 @@
 		}
 	}
 
+	async function interpret_rx() {
+		data_complete = 0;
+		const l = rx.length;
+		if (l === 0) {
+			return;
+		}
+
+		const data_type: Data = rx[0] as Data;
+
+		switch (data_type) {
+			case Data.Measurement:
+				if (l >= 4) {
+					data_complete = 4;
+					x = rx.charCodeAt(1);
+					y = rx.charCodeAt(2);
+					p = rx.charCodeAt(3);
+				}
+				break;
+		}
+	}
+
+	async function toggle_conection() {
+		if (!port) {
+
+			port = await navigator.serial.requestPort();
+			await port.open({ baudRate: 9600 });
+			reader = port.readable.getReader();
+			pollInterval = setInterval(readData, pollMilliseconds);
+
+		} else {
+			clearInterval(pollInterval);
+
+			// Release the lock on the reader before closing the port
+            if (reader) {
+                await reader.cancel();
+                reader = null;
+            }
+
+			await port.close()
+			port = null;
+			rx = "";
+		}
+	}
+
+	async function writeData(cmd: string) {
+		tx = cmd;
+		const encoder = new TextEncoder();
+		const writer = port.writable.getWriter();
+		await writer.write(encoder.encode(cmd));
+		writer.releaseLock();
+	}
+
+	async function readData() {
+		if (!reader) {
+			console.log("Reader disconnected!");
+			return;
+		}
+
+		try {
+			const readerData = await reader.read();
+			if (data_complete > 0) {
+				rx = rx.substring(data_complete);
+				rx += new TextDecoder().decode(readerData.value);
+			} else {
+				rx += new TextDecoder().decode(readerData.value);
+			}
+			interpret_rx();
+		} catch (err) {
+			const errorMessage = `error reading data: ${err}`;
+			console.error(errorMessage);
+			return errorMessage;
+		}
+	}
+
+	/*
 	async function pollData() {
 		// @ts-ignore
 		const response: string = (await (await fetch('/')).json()).bytes;
@@ -84,10 +171,7 @@
         draw();
 		polls++;
 	}
-
-	function startPolling() {
-		pollInterval = setInterval(pollData, pollMilliseconds);
-	}
+	*/
 
 	onMount(() => {
 		const h = scene3d.clientHeight;
@@ -120,14 +204,9 @@
 		camera.rotation.x = -0.3;
 
 		animate();
-		startPolling();
 
 		ready = true;
 	});
-
-    onDestroy(() => {
-        clearInterval(pollInterval);
-    })
 
 	function animate() {
 		requestAnimationFrame(animate);
@@ -137,10 +216,12 @@
 		}
 
 		// pitch += 0.005;
-		// yaw += 0.005;
+		yaw += 0.005;
 
 		renderer.clear();
 		renderer.render(scene, camera);
+
+		draw();
 	}
 
 	$: if (model) {
@@ -150,10 +231,7 @@
 		model.rotation.z = yaw;
 	}
 
-	enum Cmd {
-		ScanRow = "s",
-	}
-
+	/*
 	async function sendCommand(cmd: Cmd) {
 		console.log("Mandando: " + cmd);
 		sent_command = cmd;
@@ -166,6 +244,7 @@
 			}
 		});
 	}
+	*/
 </script>
 
 <div class="custom-grid">
@@ -193,7 +272,15 @@
 	</div>
 	<div class="col-start-1 row-start-2 row-span-2 flex flex-col h-full w-full justify-evenly p-20">
 		{#key ready}
-			<button on:click={() => sendCommand(Cmd.ScanRow)}
+			<button on:click={toggle_conection}
+				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
+				in:fly={{ x: 30, duration: 500, delay: 600 }}
+			>
+				{ port ? "Desconectar" : "Conectar" }
+			</button>
+		{/key}
+		{#key ready}
+			<button disabled={!port}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 600 }}
 			>
@@ -201,7 +288,7 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button
+			<button disabled={!port} on:click={() => writeData(Cmd.ScanRow)}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 700 }}
 			>
@@ -209,7 +296,7 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button
+			<button disabled={!port}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 800 }}
 			>
@@ -217,7 +304,7 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button
+			<button disabled={!port}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 900 }}
 			>
@@ -225,7 +312,7 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button
+			<button disabled={!port}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 1000 }}
 			>
@@ -244,9 +331,9 @@
             <br />
             Profundidad: {p}
             <br />
-            Último comando enviado: {sent_command}
+            Último comando enviado: {tx}
 			<br />
-			Últimos datos recibidos: {recv_command}
+			Últimos datos recibidos: {rx}
         </p>
 	</div>
 	<div class="col-start-3 row-start-3 h-full w-full p-10">
@@ -283,6 +370,10 @@
 		width: 100vw;
 		justify-items: center;
 		align-items: center;
+	}
+
+	button:disabled {
+		background-color: indianred;
 	}
 
 	/* :global(*) {

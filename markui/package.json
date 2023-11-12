@@ -35,7 +35,9 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"bluetooth-serial-port": "^3.0.2",
 		"collections": "^5.1.13",
+		"node-gyp": "^10.0.1",
 		"serialport": "^12.0.0",
 		"three": "^0.158.0",
 		"ws": "^8.14.2"
