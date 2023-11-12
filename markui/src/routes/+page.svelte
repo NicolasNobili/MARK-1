@@ -27,10 +27,12 @@
 		LaserOff    = "k",
 		Measurement = "a", // Expects 3 more numbers
 		Pong        = "b",
+		Debug       = "o",
 	}
 
 	// Transmission of Data
 	let tx = "";
+	$: tx_hex = string_to_hex_string(tx);
 
 	// Serial communication
 	let port: any;
@@ -43,6 +45,9 @@
 	let rx = "";
 	let angle_fr = false;
 	let laser_fr = false;
+	let debug = "";
+	$: rx_hex = string_to_hex_string(rx);
+	$: debug_hex = string_to_hex_string(debug);
 
 	// Angle A
 	const N = 21;
@@ -82,6 +87,18 @@
 
 	// Page load animations
 	let ready = false;
+
+	function string_to_hex_string(s: string) {
+		let hexAsciiArray = [];
+
+		for (let i = 0; i < s.length; i++) {
+			const charCode = s.charCodeAt(i);
+			const hexAscii = charCode.toString(16).toUpperCase();
+			hexAsciiArray.push(hexAscii);
+		}
+
+		return hexAsciiArray.join(' ');
+	}		
 
 	function draw() {
 		if (!screen) {
@@ -137,6 +154,8 @@
 		}
 	}
 
+
+
 	async function interpret_rx() {
 		data_complete = 0;
 		const l = rx.length;
@@ -187,6 +206,14 @@
 
 			case Data.Pong:
 				data_complete = 1;
+				break;
+
+			case Data.Debug:
+				if (l >= 2) {
+					data_complete = 2;
+					debug = rx.substring(0, 2);
+				}
+				break;
 
 			default:
 				// Unknown command, just get rid of it
@@ -200,8 +227,8 @@
 			// @ts-ignore
 			port = await navigator.serial.requestPort();
 			await port.open({ baudRate: 9600 });
-			writeData(Cmd.RequestPosition);
-			writeData(Cmd.RequestLaser);
+			writeData(Cmd.AskPosition);
+			writeData(Cmd.AskLaser);
 			reader = port.readable.getReader();
 			pollInterval = setInterval(readData, pollMilliseconds);
 
@@ -400,9 +427,11 @@
             <br />
 			Láser: {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
 			<br />
-            Último comando enviado: {tx}
+            Último comando enviado: {tx} - {tx_hex}
 			<br />
-			Últimos datos recibidos: {rx}
+			Últimos datos recibidos: {rx} - {rx_hex}
+			<br />
+			Último debug: {debug} - {debug_hex}
         </p>
 	</div>
 
