@@ -129,8 +129,8 @@ handler_URXC:
     cpi temp, SCAN_ROW
     breq comando_scan_row
 
-	cpi temp, MEDIR_DIST
-	breq comando_medir_dist
+    cpi temp, MEDIR_DIST
+    breq comando_medir_dist
 
     cpi temp, TURN_ON_LASER
     breq comando_turn_on_laser
