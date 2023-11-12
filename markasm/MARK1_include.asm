@@ -1,20 +1,28 @@
-;
+; ---------------------------------
 ; MARK1_include.asm
 ;
 ; Created: 11/11/2023 11:40:49 AM
 ; Authors: FR & NN
-; 
+; ---------------------------------
  
-; AUXILIARES:
-.equ INT0_PIN = 2
+
+; ------------------------------------------------------
+;                CONSTANTES AUXILIARES
+; ------------------------------------------------------
 
 .equ CLK_FREQUENCY = 16000000
+
 .equ PWM_PERIOD_US = 20000
 .equ PWM_MAX_TON_US = 2500
 .equ PWM_MIN_TON_US = 500
+
 .equ BAUD_RATE = 9600
 
-; CONSTANTES:
+
+; ------------------------------------------------------
+;                 CONSTANTES NUMÉRICAS
+; ------------------------------------------------------
+
 .equ MAX_STEPA = 20  ; Hay MAX_STEPA estados más el 0 = MAX_STEPA + 1 estados
 .equ MAX_STEPB = 20  ; Hay MAX_STEPB estados más el 0 = MAX_STEPB + 1 estados
 .equ STEPA_INICIAL = 10
@@ -34,17 +42,31 @@
 
 .equ DELAY_MOVIMIENTO = 20 ; Medido en overflows del timer 0 (16 ms)
 .equ DELAY_STEP = 10
+.equ DELAY_LASER = 0xFF
 ; .equ DELAY_MEDICION = 2  ; Si hay echo siempre no debería ser necesario
 
-; PUERTOS:
+.equ LOOPS_TRIGGER = 60
+
+
+; ------------------------------------------------------
+;                   PINES Y PUERTOS
+; ------------------------------------------------------
+
 ; PORTB:
-.equ SERVO_PIN = 1
 .equ ULTRASOUND_ECHO = 0
+.equ SERVO_PIN = 1
 .equ ULTRASOUND_TRIG = 3
+
 ; PORTD:
+.equ INT0_PIN = 2
 .equ BT_RX = 0
 .equ BT_TX = 1
 .equ LASER_PIN = 3
+
+
+; ------------------------------------------------------
+;                 ESTADOS Y OBJETIVOS
+; ------------------------------------------------------
 
 ; ESTADOS:
 .equ IDLE = 0x00
@@ -59,17 +81,38 @@
 .equ APAGAR_LASER = 0x03
 .equ SINGLE_MEASURE = 0x04
 
+
+; ------------------------------------------------------
+;                      COMUNICACIÓN
+; ------------------------------------------------------
+
 ; COMANDOS:
 .equ ABORT = 'a'
 .equ SCAN_ROW = 's'
 .equ MEDIR_DIST = 'm'
+.equ PING = 'b'
+.equ ASK_POSITION = 'p'
+.equ ASK_LASER = 'l'
 
-; REGISTROS:
+; DATA TYPES:
+.equ DONE = 'f'
+.equ MEASUREMENT = 'm'
+.equ CURRENT_POSITION = 'p'
+.equ LASER_ON = 'j'
+.equ LASER_OFF = 'k'
+.equ PONG = 'b'
+
+
+; ------------------------------------------------------
+;                        REGISTROS
+; ------------------------------------------------------
+
 .def zero = r3
-.def min_stepa = r12
-.def min_stepb = r13
-.def min_dist = r14
-.def count_ovfs = r15
+.def min_stepa = r11
+.def min_stepb = r12
+.def min_dist = r13
+.def count_ovfs = r14
+.def tempbyte = r15
 .def temp = r16
 .def templ = r17
 .def temph = r18
@@ -78,9 +121,14 @@
 .def estado = r21
 .def objetivo = r22
 .def left_ovfs = r23
+.def data_type = r24
+.def lectura = r25
 
 
-; MACROS:
+; ------------------------------------------------------
+;                         MACROS
+; ------------------------------------------------------
+
 .macro ldx
 	ldi XL, LOW(@0)
 	ldi XH, HIGH(@0)

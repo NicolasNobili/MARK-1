@@ -1,9 +1,14 @@
-;
+; ---------------------------------
 ; MARK1_servos.asm
 ;
 ; Created: 11/11/2023 14:43:08
 ; Authors: FR & NN
-; 
+; ---------------------------------
+
+
+; ------------------------------------------------------
+;                  STEP UPS Y DOWNS
+; ------------------------------------------------------
 
 ; Incrementa STEPA si es posible
 stepa_up:
@@ -15,6 +20,7 @@ stepa_up:
 
 stepa_up_end:
     ret
+
 
 ; Decrementa STEPA si es posible
 stepa_down:
@@ -31,7 +37,7 @@ stepa_down_end:
 ; Incrementa STEPB si es posible
 stepb_up:
     cpi stepb, MAX_STEPB
-    breq stepa_up_end
+    breq stepb_up_end
 
     inc stepb
     rcall actualizar_OCR1B
@@ -39,41 +45,50 @@ stepb_up:
 stepb_up_end:
     ret
 
+
 ; Decrementa STEPB si es posible
 stepb_down:
     cpi stepb, 0
-    breq stepa_down_end
+    breq stepb_down_end
 
     dec stepb
     rcall actualizar_OCR1B
 
-stepb_up_down:
+stepb_down_end:
     ret
 
 
+; ------------------------------------------------------
+;                 MODIFICACIÓN DE OCR1X
+; ------------------------------------------------------
+
+; Las funciones step up, down lo hacen automáticamente
 ; Escribe en OCR1A = STEPA * STEP_OCR1A + MIN_OCR1A
 actualizar_OCR1A:
     in temp, sreg
     push temp
     cli
 
+    ; Multiplicación
     ldi temp, STEP_OCR1A
     mul stepa, temp
 
+    ; Suma
     ldi templ, LOW(MIN_OCR1A)
     ldi temph, HIGH(MIN_OCR1A)
-    
     add templ, r0
     adc temph, r1
 
+    ; Guardado
     sts OCR1AH, temph
     sts OCR1AL, templ
 
-end_actualizar_OCR1A:
     pop temp
     out sreg, temp
     ret
 
+
+; Las funciones step up, down lo hacen automáticamente
 ; Escribe en OCR1B = STEPB * STEP_OCR1B + MIN_OCR1B
 actualizar_OCR1B:
     in temp, sreg
@@ -92,7 +107,6 @@ actualizar_OCR1B:
     sts OCR1BH, temph
     sts OCR1BL, templ
 
-end_actualizar_OCR1B:
     pop temp
     out sreg, temp
     ret

@@ -1,17 +1,25 @@
-;
+; ---------------------------------
 ; Trabajo_Integrador.asm
 ;
 ; Created: 11/11/2023 10:50:07 AM
 ; Authors: FR & NN
-;
+; ---------------------------------
 
 .include "MARK1_include.asm"
 
-; VARIABLES:
+
+; ------------------------------------------------------
+;                   MEMORIA DE DATOS
+; ------------------------------------------------------
+
 .dseg
 .org SRAM_START
 
-; CÓDIGO:
+
+; ------------------------------------------------------
+;                VECTOR DE INTERRUPCIONES
+; ------------------------------------------------------
+
 .cseg
 .org 0x0000
     rjmp main
@@ -26,8 +34,12 @@
 .org OVF2addr
     rjmp handler_OVF2
 
-.org INT_VECTORS_SIZE
 
+; ------------------------------------------------------
+;                  INICIALIZACIÓN
+; ------------------------------------------------------
+
+.org INT_VECTORS_SIZE
 main:
     clr zero
     ldi stepa, STEPA_INICIAL
@@ -45,10 +57,15 @@ main:
 	rcall config_timer0
 	rcall config_timer1
 	rcall config_USART
-	rcall config_extint
+	rcall config_int0
+    rcall config_pci0
 	
 	sei
+    
 
+; ------------------------------------------------------
+;                  LOOP PRINCIPAL
+; ------------------------------------------------------
 
 main_loop:
 
@@ -62,9 +79,15 @@ iniciar_medicion:
     ; Mientras tanto no hay que hacer nada
     ldi estado, MIDIENDO
     rcall send_trigger
+
     rjmp main_loop
 
 end_main: rjmp end_main
+
+
+; ------------------------------------------------------
+;                 RUTINAS Y HANDLERS
+; ------------------------------------------------------
 
 .include "MARK1_config.asm"
 .include "MARK1_handlers.asm"

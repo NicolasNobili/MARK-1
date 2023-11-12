@@ -1,12 +1,19 @@
-;
+; ---------------------------------
 ; MARK1_config.asm
 ;
 ; Created: 11/11/2023 11:49:48 AM
 ; Authors: FR & NN
-;
+; ---------------------------------
+
+
+; ------------------------------------------------------
+;                       PUERTOS
+; ------------------------------------------------------
 
 config_ports:
+    ; Evitar pulso no deseado al comienzo del programa
 	out PORTB,zero
+
 	; PORTB
 	cbi PORTB,ULTRASOUND_TRIG
 	sbi DDRB, SERVO_PIN
@@ -17,12 +24,15 @@ config_ports:
 	sbi DDRD, LASER_PIN
     cbi DDRD, INT0_PIN
     sbi PORTD, INT0_PIN
+
 	ret
 
 
-config_extint:
-    
-	;INTO
+; ------------------------------------------------------
+;               INTERRUPCIONES EXTERNAS
+; ------------------------------------------------------
+
+config_int0:
 	; Flanco negativo
     ldi temp, (1 << ISC01) | (0 << ISC00)
     sts EICRA, temp 
@@ -30,18 +40,27 @@ config_extint:
     ; Habilitar interrupción
 	sbi EIMSK, INT0
 
-	;PCI0
-	ldi temp, (1 << PCIE0)
-	sts PCICR,temp
+    ret
 
-	ldi temp, (1 << PCINT0)
-	sts PCMSK0,temp
+
+config_pci0:
+    ; Habilitar interrupción
+	ldi temp, (1 << PCIE0)
+	sts PCICR, temp
+
+    ; Habilitar pin de ECHO
+	ldi temp, (1 << ULTRASOUND_ECHO)
+	sts PCMSK0, temp
 
     ret
 
 
+; ------------------------------------------------------
+;                  COMUNICACIÓN SERIAL
+; ------------------------------------------------------
+
 config_USART:
-    ; TX & RX Complete Interrupt Enable, Enable TX & RX
+    ; RX Complete Interrupt Enable, Enable TX & RX
 	ldi temp, (1 << RXCIE0) | (1 << RXEN0) | (1 << TXEN0)
 	sts UCSR0B, temp
 
@@ -57,6 +76,23 @@ config_USART:
 
 	ret
 
+
+; ------------------------------------------------------
+;                        TIMERS
+; ------------------------------------------------------
+
+config_timer0:
+	clr temp
+
+    ; Modo normal apagado
+	out TCCR0A, temp
+	out TCCR0B, temp
+
+	; Interrupción por overflow
+	ldi temp, (1 << TOIE0)
+	sts TIMSK0, temp
+
+	ret
 
 
 config_timer1:
@@ -88,18 +124,6 @@ config_timer1:
 
 	ret
 
-config_timer0:
-	clr temp
-
-    ; Modo normal apagado
-	out TCCR0A, temp
-	out TCCR0B, temp
-
-	; Interrupción por overflow
-	ldi temp, (1 << TOIE0)
-	sts TIMSK0, temp
-
-	ret
 
 config_timer2:
 	clr temp
