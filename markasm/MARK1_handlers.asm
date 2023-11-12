@@ -123,8 +123,9 @@ handler_URXC:
     breq comando_ask_laser
 
     ; Para otros comandos, primero verificamos si estamos en IDLE o WAITING_COMMAND
+    ; Si no, devolvemos que estamos ocupados
     cpi estado, IDLE
-    brne handler_URXC_end
+    brne send_busy
 
     ; Leer comando
 
@@ -217,6 +218,12 @@ comando_turn_off_laser:
 	; Apagar láser y notificar cambio de estado
 	cbi PORTD, LASER_PIN
     ldi data_type, LASER_OFF
+    rcall send_data
+
+    rjmp handler_URXC_end
+
+send_busy:
+    ldi data_type, BUSY
     rcall send_data
 
     rjmp handler_URXC_end
