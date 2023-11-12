@@ -9,19 +9,24 @@
 
 	// Transmission
 	enum Cmd {
-		ScanRow = "s",
-		SingleMeasure = "m",
-		RequestPosition = "p",
-		RequestLaser = "l",
+		Abort           = "a",
+		Ping            = "b",
+		ScanRow         = "s",
+		SingleMeasure   = "m",
+		AskPosition     = "p",
+		AskLaser        = "l",
+		TurnOnLaser     = "c",
+		TurnOffLaser    = "d",
 	}
 
 	// Reception
 	enum Data {
-		Done = "f",
-		Position = "p", // Expects 2 more numbers
-		LaserOn = "j",
-		LaserOff = "k",
+		Done        = "f",
+		Position    = "p", // Expects 2 more numbers
+		LaserOn     = "j",
+		LaserOff    = "k",
 		Measurement = "a", // Expects 3 more numbers
+		Pong        = "b",
 	}
 
 	// Transmission of Data
@@ -180,6 +185,9 @@
 				data_complete = 1;
 				break;
 
+			case Data.Pong:
+				data_complete = 1;
+
 			default:
 				// Unknown command, just get rid of it
 				data_complete = 1;
@@ -242,6 +250,14 @@
 			const errorMessage = `error reading data: ${err}`;
 			console.error(errorMessage);
 			return errorMessage;
+		}
+	}
+
+	async function toggleLaser() {
+		if (laser) {
+			writeData(Cmd.TurnOffLaser)
+		} else {
+			writeData(Cmd.TurnOnLaser)
 		}
 	}
 
@@ -333,7 +349,7 @@
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 600 }}
 			>
-				Escanear todo
+				Escanear todo (no implementado)
 			</button>
 		{/key}
 		{#key ready}
@@ -349,7 +365,7 @@
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 800 }}
 			>
-				Escanear verticalmente
+				Escanear verticalmente (no implementado)
 			</button>
 		{/key}
 		{#key ready}
@@ -361,7 +377,7 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button disabled={!port || !laser_fr}
+			<button disabled={!port || !laser_fr} on:click={toggleLaser}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 900 }}
 			>
