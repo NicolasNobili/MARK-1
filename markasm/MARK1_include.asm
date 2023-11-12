@@ -12,7 +12,7 @@
 
 .equ CLK_FREQUENCY = 16000000
 
-.equ PWM_PERIOD_US = 20000
+.equ PWM_PERIOD_US  = 20000
 .equ PWM_MAX_TON_US = 2500
 .equ PWM_MIN_TON_US = 500
 
@@ -28,23 +28,24 @@
 .equ STEPA_INICIAL = 10
 .equ STEPB_INICIAL = 10
 
-.equ TOP_PWM   = int( (CLK_FREQUENCY/8) * PWM_PERIOD_US / (2 * 1000000) ) ; del datasheet
+.equ TOP_PWM = int( (CLK_FREQUENCY/8) * PWM_PERIOD_US / (2 * 1000000) ) ; del datasheet
 
-.equ MAX_OCR1A = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US / PWM_PERIOD_US)
-.equ MIN_OCR1A = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US / PWM_PERIOD_US)
+.equ MAX_OCR1A  = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US / PWM_PERIOD_US)
+.equ MIN_OCR1A  = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US / PWM_PERIOD_US)
 .equ STEP_OCR1A = (MAX_OCR1A - MIN_OCR1A) / MAX_STEPA
 
-.equ MAX_OCR1B = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US / PWM_PERIOD_US) 
-.equ MIN_OCR1B = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US / PWM_PERIOD_US)
-.equ STEP_OCR1B = (MAX_OCR1B - MIN_OCR1B) / MAX_STEPB
+.equ MAX_OCR1B  = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US / PWM_PERIOD_US) 
+.equ MIN_OCR1B  = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US / PWM_PERIOD_US)
+.equ STEP_OCR1B = (MAX_OCR1B - MIN_OCR1B) / MAX_STEPB ; si llegaste acá, elegí valores que den todo entero bro
 
 .equ UBRR0 = int( CLK_FREQUENCY / (16 * BAUD_RATE) - 1 )
 
-.equ DELAY_MOVIMIENTO = 20 ; Medido en overflows del timer 0 (16 ms)
-.equ DELAY_STEP = 10
-.equ DELAY_LASER = 0xFF
-; .equ DELAY_MEDICION = 2  ; Si hay echo siempre no debería ser necesario
+; Medidos en overflows del timer 0 (16 ms)
+.equ DELAY_MOVIMIENTO = 20
+.equ DELAY_STEP       = 10
+.equ DELAY_LASER      = 0xFF
 
+; Objetivo: 10 us
 .equ LOOPS_TRIGGER = 60
 
 
@@ -54,13 +55,13 @@
 
 ; PORTB:
 .equ ULTRASOUND_ECHO = 0
-.equ SERVO_PIN = 1
+.equ SERVO_PIN       = 1
 .equ ULTRASOUND_TRIG = 3
 
 ; PORTD:
-.equ INT0_PIN = 2
-.equ BT_RX = 0
-.equ BT_TX = 1
+.equ BT_RX     = 0
+.equ BT_TX     = 1
+.equ INT0_PIN  = 2
 .equ LASER_PIN = 3
 
 
@@ -69,17 +70,17 @@
 ; ------------------------------------------------------
 
 ; ESTADOS:
-.equ IDLE = 0x00
-.equ MEDIR = 0x01  ; A punto de medir (todavía no)
+.equ IDLE     = 0x00
+.equ MEDIR    = 0x01  ; A punto de medir (todavía no)
 .equ MIDIENDO = 0x02
-.equ DELAY = 0x03
+.equ DELAY    = 0x03
 
 ; OBJETIVOS:
 .equ WAITING_COMMAND = 0x00
-.equ SCANNING_ROW = 0x01
-.equ PRENDER_LASER = 0x02
-.equ APAGAR_LASER = 0x03
-.equ SINGLE_MEASURE = 0x04
+.equ SCANNING_ROW    = 0x01
+.equ PRENDER_LASER   = 0x02
+.equ APAGAR_LASER    = 0x03
+.equ SINGLE_MEASURE  = 0x04
 
 
 ; ------------------------------------------------------
@@ -87,42 +88,42 @@
 ; ------------------------------------------------------
 
 ; COMANDOS:
-.equ ABORT = 'a'
-.equ SCAN_ROW = 's'
-.equ MEDIR_DIST = 'm'
-.equ PING = 'b'
+.equ ABORT        = 'a'
+.equ SCAN_ROW     = 's'
+.equ MEDIR_DIST   = 'm'
+.equ PING         = 'b'
 .equ ASK_POSITION = 'p'
-.equ ASK_LASER = 'l'
+.equ ASK_LASER    = 'l'
 
 ; DATA TYPES:
-.equ DONE = 'f'
-.equ MEASUREMENT = 'm'
+.equ DONE             = 'f'
+.equ MEASUREMENT      = 'm'
 .equ CURRENT_POSITION = 'p'
-.equ LASER_ON = 'j'
-.equ LASER_OFF = 'k'
-.equ PONG = 'b'
+.equ LASER_ON         = 'j'
+.equ LASER_OFF        = 'k'
+.equ PONG             = 'b'
 
 
 ; ------------------------------------------------------
 ;                        REGISTROS
 ; ------------------------------------------------------
 
-.def zero = r3
-.def min_stepa = r11
-.def min_stepb = r12
-.def min_dist = r13
+.def zero       = r3
+.def min_stepa  = r11
+.def min_stepb  = r12
+.def min_dist   = r13
 .def count_ovfs = r14
-.def tempbyte = r15
-.def temp = r16
-.def templ = r17
-.def temph = r18
-.def stepa = r19
-.def stepb = r20
-.def estado = r21
-.def objetivo = r22
-.def left_ovfs = r23
-.def data_type = r24
-.def lectura = r25
+.def tempbyte   = r15
+.def temp       = r16
+.def templ      = r17
+.def temph      = r18
+.def stepa      = r19
+.def stepb      = r20
+.def estado     = r21
+.def objetivo   = r22
+.def left_ovfs  = r23
+.def data_type  = r24
+.def lectura    = r25
 
 
 ; ------------------------------------------------------
