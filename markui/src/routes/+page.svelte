@@ -142,8 +142,8 @@
 				ctx.fillStyle = `rgb(${value + recency}, ${value - recency/2}, ${value - recency/2})`;
 				// @ts-ignore
 				ctx.fillRect(
-					j * (screen.width / N),
-					i * (screen.height / M),
+					i * (screen.width / N),
+					j * (screen.height / M),
 					screen.width / N,
 					screen.height / M
 				);
