@@ -19,12 +19,21 @@ config_ports:
 
 
 config_extint:
-    ; Flanco negativo
+    
+	;INTO
+	; Flanco negativo
     ldi temp, (1 << ISC01) | (0 << ISC00)
     sts EICRA, temp 
 
     ; Habilitar interrupción
 	sbi EIMSK, INT0
+
+	;PCI0
+	ldi temp, (PCIE0 << 1)
+	sts PCICR,temp
+
+	ldi temp, (PCINT0 << 1)
+	sts PCMSK0,temp
 
     ret
 
@@ -87,5 +96,18 @@ config_timer0:
 	; Interrupción por overflow
 	ldi temp, (1 << TOIE0)
 	sts TIMSK0, temp
+
+	ret
+
+config_timer2:
+	clr temp
+
+    ; Modo normal apagado
+	sts TCCR2A, temp
+	sts TCCR2B, temp
+
+	; Interrupción por overflow
+	ldi temp, (1 << TOIE2)
+	sts TIMSK2, temp
 
 	ret

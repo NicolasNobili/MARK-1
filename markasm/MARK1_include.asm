@@ -55,6 +55,8 @@
 ; OBJETIVOS:
 .equ WAITING_COMMAND = 0x00
 .equ SCANNING_ROW = 0x01
+.equ PRENDER_LASER = 0x02
+.equ APAGAR_LASER = 0x03
 
 ; COMANDOS:
 .equ ABORT = 'a'
@@ -62,6 +64,10 @@
 
 ; REGISTROS:
 .def zero = r3
+.def min_stepa = r12
+.def min_stepb = r13
+.def min_dist = r14
+.def count_ovfs = r15
 .def temp = r16
 .def templ = r17
 .def temph = r18

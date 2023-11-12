@@ -17,10 +17,14 @@
     rjmp main
 .org INT0addr
     rjmp handler_INT0
+.org PCI0addr
+	rjmp handler_PCIO
 .org URXCaddr
     rjmp handler_URXC
 .org OVF0addr
     rjmp handler_OVF0
+.org OVF2addr
+    rjmp handler_OVF2
 
 .org INT_VECTORS_SIZE
 
