@@ -39,12 +39,15 @@ objetivo_prender_laser:
 	ldi objetivo,APAGAR_LASER
 	ldi left_ovfs,0xFF
 	rcall start_timer0
+	rjmp handler_OVF0_end
+
 
 objetivo_apagar_laser:
 	cbi PORTD,LASER_PIN
 	rcall stop_timer0
 	ldi estado,IDLE
 	ldi objetivo,WAITING_COMMAND
+	rjmp handler_OVF0_end
 
 handler_OVF0_end:
     pop temp
@@ -93,7 +96,7 @@ comando_scan_row:
 	dec min_dist
     rcall start_timer0
     ldi objetivo, SCANNING_ROW
-	 rjmp handler_URXC_end
+	rjmp handler_URXC_end
 
 comando_medir_dist:
 	ldi estado,MEDIR
@@ -160,7 +163,7 @@ process_measure:
 	mov min_stepb,stepb
 
 send_measure:
-	;call transmit_measure
+	rcall transmit_measure
 	cpi objetivo,SINGLE_MEASURE
 	breq terminar_objetivo_aux
 
@@ -183,6 +186,7 @@ terminar_objetivo:
 terminar_objetivo_aux:
     ldi estado, DELAY
 	ldi left_ovfs, DELAY_MOVIMIENTO
+	rcall start_timer0
     ldi objetivo, PRENDER_LASER
 	rjmp handler_PCI0_end
 
@@ -195,7 +199,7 @@ handler_PCI0_end:
 	out sreg,temp
 	reti
 
-;--------------------------
+
 
 handler_OVF2:
 	in temp,sreg

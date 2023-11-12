@@ -6,7 +6,9 @@
 ;
 
 config_ports:
+	out PORTB,zero
 	; PORTB
+	cbi PORTB,ULTRASOUND_TRIG
 	sbi DDRB, SERVO_PIN
 	sbi DDRB, ULTRASOUND_TRIG
 	cbi DDRB, ULTRASOUND_ECHO
@@ -40,7 +42,7 @@ config_extint:
 
 config_USART:
     ; TX & RX Complete Interrupt Enable, Enable TX & RX
-	ldi temp, (1 << RXCIE0) | (1 << TXCIE0) | (1 << RXEN0) | (1 << TXEN0)
+	ldi temp, (1 << RXCIE0) | (1 << RXEN0) | (1 << TXEN0)
 	sts UCSR0B, temp
 
     ;               Asynchronous USART                   no-parity                     8-bit data              1 stop bit

@@ -44,7 +44,7 @@
 ; PORTD:
 .equ BT_RX = 0
 .equ BT_TX = 1
-.equ LASER_PIN = 2
+.equ LASER_PIN = 3
 
 ; ESTADOS:
 .equ IDLE = 0x00
