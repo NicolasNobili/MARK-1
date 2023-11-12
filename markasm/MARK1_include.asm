@@ -40,7 +40,7 @@
 ; PORTB:
 .equ SERVO_PIN = 1
 .equ ULTRASOUND_ECHO = 0
-.equ ULTRASOUND_TRIG = 2
+.equ ULTRASOUND_TRIG = 3
 ; PORTD:
 .equ BT_RX = 0
 .equ BT_TX = 1
@@ -57,10 +57,12 @@
 .equ SCANNING_ROW = 0x01
 .equ PRENDER_LASER = 0x02
 .equ APAGAR_LASER = 0x03
+.equ SINGLE_MEASURE = 0x04
 
 ; COMANDOS:
 .equ ABORT = 'a'
 .equ SCAN_ROW = 's'
+.equ MEDIR_DIST = 'm'
 
 ; REGISTROS:
 .def zero = r3

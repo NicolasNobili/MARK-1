@@ -5,6 +5,7 @@
 ; Authors: FR & NN
 ; 
 
+;--------------------------
 
 handler_OVF0:
     in temp, sreg
@@ -32,6 +33,7 @@ objetivo_scanning_row:
     rjmp handler_OVF0_end
 
 objetivo_prender_laser:
+	rcall stop_timer0
 	sbi PORTD,LASER_PIN
 	ldi estado,DELAY
 	ldi objetivo,APAGAR_LASER
@@ -49,6 +51,7 @@ handler_OVF0_end:
     out sreg, temp
     reti
 
+;--------------------------
 ; Recepción de comandos
 handler_URXC:
     in temp, sreg
@@ -67,6 +70,9 @@ handler_URXC:
 
     cpi temp, SCAN_ROW
     breq comando_scan_row
+
+	cpi temp, MEDIR_DIST
+	breq comando_medir_dist
 
     ; Comando desconocido
     rjmp handler_URXC_end
@@ -87,7 +93,11 @@ comando_scan_row:
 	dec min_dist
     rcall start_timer0
     ldi objetivo, SCANNING_ROW
+	 rjmp handler_URXC_end
 
+comando_medir_dist:
+	ldi estado,MEDIR
+	ldi objetivo,SINGLE_MEASURE
     rjmp handler_URXC_end
 
 handler_URXC_end:
@@ -95,6 +105,7 @@ handler_URXC_end:
     out sreg, temp
     reti
 
+;--------------------------
 
 ; COPIAR AL CÓDIGO DE ECHO
 handler_INT0:
@@ -106,7 +117,7 @@ handler_INT0:
     ; Mandar información por USART (stepa, stepb, medicion)
 
     cpi stepa, MAX_STEPA
-    breq terminar_objetivo_aux
+    breq terminar_objetivo_aux_aux
 
     rcall stepa_up
     ldi estado, DELAY
@@ -115,7 +126,7 @@ handler_INT0:
 
     rjmp handler_INT0_end
 
-terminar_objetivo_aux:
+terminar_objetivo_aux_aux:
 	ldi stepa,STEPA_INICIAL
 	rcall actualizar_OCR1A
     ldi estado, IDLE
@@ -125,6 +136,8 @@ handler_INT0_end:
     pop temp
     out sreg, temp
     reti
+
+;--------------------------
 
 handler_PCIO:
 	in temp,sreg
@@ -147,7 +160,9 @@ process_measure:
 	mov min_stepb,stepb
 
 send_measure:
-	rcall transmit_measure
+	;call transmit_measure
+	cpi objetivo,SINGLE_MEASURE
+	breq terminar_objetivo_aux
 
 	cpi stepa, MAX_STEPA
     breq terminar_objetivo
@@ -165,6 +180,7 @@ terminar_objetivo:
 	mov stepb , min_stepb
 	rcall actualizar_OCR1B
 
+terminar_objetivo_aux:
     ldi estado, DELAY
 	ldi left_ovfs, DELAY_MOVIMIENTO
     ldi objetivo, PRENDER_LASER
@@ -179,7 +195,7 @@ handler_PCI0_end:
 	out sreg,temp
 	reti
 
-
+;--------------------------
 
 handler_OVF2:
 	in temp,sreg

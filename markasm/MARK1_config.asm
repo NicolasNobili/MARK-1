@@ -29,10 +29,10 @@ config_extint:
 	sbi EIMSK, INT0
 
 	;PCI0
-	ldi temp, (PCIE0 << 1)
+	ldi temp, (1 << PCIE0)
 	sts PCICR,temp
 
-	ldi temp, (PCINT0 << 1)
+	ldi temp, (1 << PCINT0)
 	sts PCMSK0,temp
 
     ret

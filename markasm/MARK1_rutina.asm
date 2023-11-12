@@ -53,5 +53,8 @@ loop_trig:
 	ret
 
 transmit_measure:
+	sts UDR0,temp
 	ret
+
+
 
