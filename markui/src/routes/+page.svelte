@@ -3,39 +3,71 @@
 	import { fly } from 'svelte/transition';
 	import * as THREE from 'three';
 	import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+	import { tweened } from 'svelte/motion';
+	import { cubicOut } from 'svelte/easing';
+	import { browser } from '$app/environment';
 
+	// Transmission
 	enum Cmd {
 		ScanRow = "s",
+		SingleMeasure = "m",
+		RequestPosition = "p",
+		RequestLaser = "l",
 	}
 
+	// Reception
 	enum Data {
+		Done = "f",
+		Position = "p", // Expects 2 more numbers
+		LaserOn = "j",
+		LaserOff = "k",
 		Measurement = "a", // Expects 3 more numbers
 	}
 
+	// Transmission of Data
+	let tx = "";
+
+	// Serial communication
 	let port: any;
 	let reader: any;
-	let data_complete = 0;
-
-	let screen: HTMLCanvasElement;
-	let polls = 0;
-
-	let x = 0;
-	let y = 0;
-	let p = 0;
-    let tx = "";
-	let rx = "";
-
-	let pitch = 0;
-	let yaw = 0;
-	let opacity = -1;
 	let pollMilliseconds = 10;
+	let pollInterval: NodeJS.Timeout;
 
-	const M = 21;
+	// Reception of Data
+	let data_complete = 0;
+	let rx = "";
+	let angle_fr = false;
+	let laser_fr = false;
+
+	// Angle A
 	const N = 21;
+	let x = 0;
+	let smoothx = tweened(x, {easing: cubicOut});
+	$: $smoothx = x;
+	$: yaw = $smoothx;
+	$: if (model) model.rotation.z = yaw;
 
+	// Angle B
+	const M = 21;
+	let y = 0;
+	let smoothy = tweened(y, {easing: cubicOut});
+	$: $smoothy = y;
+	$: pitch = $smoothy - 3.14 / 2;
+	$: if (model) model.rotation.x = pitch;
+
+	// Measurement, depth
+	let p: number | null = null;
+
+	// Laser status
+	let laser = false;
+
+	// Depth Map
+	let screen: HTMLCanvasElement;
 	let depthMap = new Uint8Array(M * N);
 	let recencyMap = new Uint8Array(M * N);
+	let cursorPadding = 1;
 
+	// 3D Model
 	let scene3d: Element;
 	let camera: THREE.PerspectiveCamera;
 	let scene: THREE.Scene;
@@ -43,34 +75,57 @@
 	let model: THREE.Object3D;
 	const loader = new GLTFLoader();
 
-    let pollInterval: NodeJS.Timeout;
-
-	let laser = false;
-	let automatic = false;
-
+	// Page load animations
 	let ready = false;
 
 	function draw() {
-		if (screen) {
-			const ctx = screen.getContext('2d');
+		if (!screen) {
+			console.error("Cannot draw when screen is not available!");
+		}
 
-			// Draw the depthMap
-			for (let i = 0; i < M; i++) {
-				for (let j = 0; j < N; j++) {
-					const value = depthMap[i + N * j];
-                    const recency = recencyMap[i + N * j];
-                    if (recency != 0) {
-                        recencyMap[i + N * j] -= 5;
-                    }
+		const ctx = screen.getContext('2d');
 
+		// Black background
+		// // @ts-ignore
+		// ctx.globalAlpha = 1.0;
+		// // @ts-ignore
+		// ctx.fillStyle = "rgb(0, 0, 0)";
+		// // @ts-ignore
+		// ctx.fillRect(0, 0, screen.width, screen.height);
+
+		for (let i = 0; i < M; i++) {
+			for (let j = 0; j < N; j++) {
+
+				// Read buffers
+				const value = depthMap[i + N * j];
+				const recency = recencyMap[i + N * j];
+				if (recency != 0) {
+					recencyMap[i + N * j] -= 1;
+				}
+
+				// Draw depth square
+				// @ts-ignore
+				ctx.fillStyle = `rgb(${value + recency}, ${value - recency/2}, ${value - recency/2})`;
+				// @ts-ignore
+				ctx.fillRect(
+					j * (screen.width / N),
+					i * (screen.height / M),
+					screen.width / N,
+					screen.height / M
+				);
+
+				// Draw cursor
+				if (angle_fr) {
 					// @ts-ignore
-					ctx.fillStyle = `rgb(${value + recency}, ${value - recency/2}, ${value - recency/2})`;
+					// ctx.globalAlpha = 0.1;
+					// @ts-ignore
+					ctx.fillStyle = "rgb(0, 100, 255)";
 					// @ts-ignore
 					ctx.fillRect(
-						j * (screen.width / N),
-						i * (screen.height / M),
-						screen.width / N,
-						screen.height / M
+						$smoothx * (screen.width / N) + cursorPadding,
+						$smoothy * (screen.height / M) + cursorPadding,
+						screen.width / N - 2 * cursorPadding,
+						screen.height / M -  2 * cursorPadding,
 					);
 				}
 			}
@@ -93,16 +148,52 @@
 					x = rx.charCodeAt(1);
 					y = rx.charCodeAt(2);
 					p = rx.charCodeAt(3);
+					depthMap[x + N * y] = 255 - p;
+					recencyMap[x + N * y] = 255;
+					angle_fr = true;
 				}
 				break;
+
+			case Data.Position:
+				if (l >= 3) {
+					data_complete = 3;
+					x = rx.charCodeAt(1);
+					y = rx.charCodeAt(2);
+					p = null;
+					angle_fr = true;
+				}
+				break;
+
+			case Data.Done:
+				data_complete = 1;
+				break;
+
+			case Data.LaserOn:
+				laser = true;
+				laser_fr = true;
+				data_complete = 1;
+				break;
+
+			case Data.LaserOff:
+				laser = false;
+				laser_fr = true;
+				data_complete = 1;
+				break;
+
+			default:
+				// Unknown command, just get rid of it
+				data_complete = 1;
 		}
 	}
 
 	async function toggle_conection() {
 		if (!port) {
 
+			// @ts-ignore
 			port = await navigator.serial.requestPort();
 			await port.open({ baudRate: 9600 });
+			writeData(Cmd.RequestPosition);
+			writeData(Cmd.RequestLaser);
 			reader = port.readable.getReader();
 			pollInterval = setInterval(readData, pollMilliseconds);
 
@@ -118,6 +209,9 @@
 			await port.close()
 			port = null;
 			rx = "";
+			p = null;
+			laser_fr = false;
+			angle_fr = false;
 		}
 	}
 
@@ -151,72 +245,8 @@
 		}
 	}
 
-	/*
-	async function pollData() {
-		// @ts-ignore
-		const response: string = (await (await fetch('/')).json()).bytes;
-
-		if (response === "") {
-			return
-		}
-
-		x = response.charCodeAt(0);
-		y = response.charCodeAt(1);
-		p = response.charCodeAt(2);
-		recv_command = response;
-		depthMap[x + N * y] = 255 - p;
-        recencyMap[x + N * y] = 0xff;
-        pitch = (x - M/2) / M * 3.14;
-        yaw = (y - N/2) / N * 3.14;
-        draw();
-		polls++;
-	}
-	*/
-
-	onMount(() => {
-		const h = scene3d.clientHeight;
-		const w = scene3d.clientWidth;
-		camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
-		scene = new THREE.Scene();
-
-		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-		renderer.setSize(w, h);
-		scene3d.appendChild(renderer.domElement);
-
-		loader.load(
-			'/scene.gltf',
-			function (gltf) {
-				model = gltf.scene.children[0];
-				scene.add(model);
-			},
-			undefined,
-			function (error) {
-				console.log(error);
-			}
-		);
-
-		var light = new THREE.AmbientLight(0xffffff, 1);
-		scene.add(light);
-
-		camera.position.z = 2.5;
-		camera.position.y = 1;
-		camera.position.x = -0.03;
-		camera.rotation.x = -0.3;
-
-		animate();
-
-		ready = true;
-	});
-
 	function animate() {
 		requestAnimationFrame(animate);
-
-		if (opacity < 1) {
-			opacity += 0.01;
-		}
-
-		// pitch += 0.005;
-		yaw += 0.005;
 
 		renderer.clear();
 		renderer.render(scene, camera);
@@ -224,27 +254,43 @@
 		draw();
 	}
 
-	$: if (model) {
-		model.rotation.x = pitch - 3.14 / 2;
-	}
-	$: if (model) {
-		model.rotation.z = yaw;
-	}
+	onMount(() => {
+		if (browser) {
+			const h = scene3d.clientHeight;
+			const w = scene3d.clientWidth;
+			camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
+			scene = new THREE.Scene();
 
-	/*
-	async function sendCommand(cmd: Cmd) {
-		console.log("Mandando: " + cmd);
-		sent_command = cmd;
+			renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+			renderer.setSize(w, h);
+			scene3d.appendChild(renderer.domElement);
 
-		const response = await fetch('/', {
-			method: 'POST',
-			body: JSON.stringify({ cmd }),
-			headers: {
-				'content-type': 'application/json'
-			}
-		});
-	}
-	*/
+			loader.load(
+				'/scene.gltf',
+				function (gltf) {
+					model = gltf.scene.children[0];
+					scene.add(model);
+				},
+				undefined,
+				function (error) {
+					console.log(error);
+				}
+			);
+
+			var light = new THREE.AmbientLight(0xffffff, 1);
+			scene.add(light);
+
+			camera.position.z = 2.5;
+			camera.position.y = 1;
+			camera.position.x = -0.03;
+			camera.rotation.x = -0.3;
+
+			animate();
+
+			ready = true;
+		}
+	});
+
 </script>
 
 <div class="custom-grid">
@@ -256,12 +302,14 @@
 			<h2 in:fly={{ x: 30, duration: 500, delay: 500 }}>Francisco Russo</h2>
 		{/key}
 	</div>
+
 	<div class="col-start-2 row-start-1 text-center grid place-content-center h-full w-full">
 		<h1>M.A.R.K. I</h1>
 		{#key ready}
 			<h2 in:fly={{ y: -30, duration: 500, delay: 300 }}>Multi Angle Radar Kinematics Mk.1</h2>
 		{/key}
 	</div>
+
 	<div class="col-start-3 row-start-1 text-center grid place-content-center h-full w-full">
 		{#key ready}
 			<h2 in:fly={{ x: -30, duration: 500, delay: 400 }}>Facultad de Ingeniería de la UBA</h2>
@@ -270,6 +318,7 @@
 			<h2 in:fly={{ x: -30, duration: 500, delay: 500 }}>Laboratorio de Microprocesadores</h2>
 		{/key}
 	</div>
+
 	<div class="col-start-1 row-start-2 row-span-2 flex flex-col h-full w-full justify-evenly p-20">
 		{#key ready}
 			<button on:click={toggle_conection}
@@ -280,7 +329,7 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button disabled={!port}
+			<button disabled={!port || true}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 600 }}
 			>
@@ -296,7 +345,7 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button disabled={!port}
+			<button disabled={!port || true}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 800 }}
 			>
@@ -304,42 +353,50 @@
 			</button>
 		{/key}
 		{#key ready}
-			<button disabled={!port}
+			<button disabled={!port} on:click={() => writeData(Cmd.SingleMeasure)}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 900 }}
 			>
-				{laser ? 'Apagar' : 'Prender'} láser
+				Medir en posición actual
 			</button>
 		{/key}
 		{#key ready}
-			<button disabled={!port}
+			<button disabled={!port || !laser_fr}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-				in:fly={{ x: 30, duration: 500, delay: 1000 }}
+				in:fly={{ x: 30, duration: 500, delay: 900 }}
 			>
-				Modo {automatic ? 'manual' : 'automático'}
+				{laser ? 'Apagar' : 'Prender'} láser (falta mandar)
 			</button>
 		{/key}
 	</div>
+
 	<div class="col-start-2 row-start-2 row-span-2 h-full w-full grid place-items-center p-20">
 		<canvas class="h-full w-full" bind:this={screen} />
 	</div>
+
 	<div class="col-start-3 row-start-2 h-full w-full gird place-items-center p-20">
         <p class="text-lg">
-            Frames: {polls}
+            Ángulo A: {angle_fr ? x : ""}
             <br />
-            Ángulo: {x}, {y}
+			Ángulo B: {angle_fr ? y : ""}
+			<br />
+            Profundidad: {p ? p : ""}
             <br />
-            Profundidad: {p}
-            <br />
+			Láser: {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
+			<br />
             Último comando enviado: {tx}
 			<br />
 			Últimos datos recibidos: {rx}
         </p>
 	</div>
+
 	<div class="col-start-3 row-start-3 h-full w-full p-10">
 		<div class="h-full w-full" bind:this={scene3d} />
 	</div>
 </div>
+
+
+
 
 <style lang="postcss">
 	@import url('https://fonts.googleapis.com/css2?family=Dosis:wght@500&family=Josefin+Sans&display=swap');
