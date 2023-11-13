@@ -287,6 +287,7 @@
 		tx = cmd;
 		const encoder = new TextEncoder();
 		const writer = port.writable.getWriter();
+		console.log("Enviado: " + (cmd + "\r\n"));
 		await writer.write(encoder.encode(cmd + "\r\n"));
 		writer.releaseLock();
 	}
@@ -300,7 +301,7 @@
 		try {
 			const readerData = await reader.read();
 			const readData = new TextDecoder().decode(readerData.value);
-			console.log("Recibido:" + readData);
+			console.log("Recibido: " + readData);
 			rx_queue += readData;
 			flush_rx_queue();
 		} catch (err) {
