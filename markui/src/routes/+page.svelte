@@ -12,11 +12,15 @@
 		Abort           = "a",
 		Ping            = "b",
 		ScanRow         = "s",
+		ScanCol         = "t",
+		ScanAll         = "z",
 		SingleMeasure   = "m",
 		AskPosition     = "p",
 		AskLaser        = "l",
 		TurnOnLaser     = "c",
 		TurnOffLaser    = "d",
+		MoveTo          = "x",
+		ScanRegion      = "w",
 	}
 
 	// Reception
@@ -27,7 +31,8 @@
 		LaserOff    = "k",
 		Measurement = "m", // Expects 3 more numbers
 		Pong        = "b",
-		Debug       = "o",
+		Debug       = "o", // Expects 1 more number
+		Busy        = "n",
 	}
 
 	// Transmission of Data
@@ -171,11 +176,10 @@
 	// If there is an incomplete command, it leaves it there
 	async function flush_rx_queue() {
 
-		let cannotFlush = false;
 		while (rx_queue.length > 0) {
 			const data_type: Data = rx_queue[0] as Data;
 			const len = rx_queue.length;
-			let bytes_to_flush = 1;
+			let bytes_to_flush = 0;
 
 			switch (data_type) {
 				case Data.Measurement:
@@ -187,8 +191,6 @@
 						depthMap[x + N * y] = 255 - p;
 						recencyMap[x + N * y] = 255;
 						angle_fr = true;
-					} else {
-						cannotFlush = true;
 					}
 					break;
 
@@ -199,40 +201,46 @@
 						y = rx_queue.charCodeAt(2);
 						p = null;
 						angle_fr = true;
-					} else {
-						cannotFlush = true;
 					}
 					break;
 
 				case Data.Done:
+					bytes_to_flush = 1;
 					break;
 
 				case Data.LaserOn:
+					bytes_to_flush = 1;
 					laser = true;
 					laser_fr = true;
 					break;
 
 				case Data.LaserOff:
+					bytes_to_flush = 1;
 					laser = false;
 					laser_fr = true;
 					break;
 
 				case Data.Pong:
+					bytes_to_flush = 1;
 					break;
 
 				case Data.Debug:
 					if (len >= 2) {
+						debug = rx_queue.substring(0, 2);
 						bytes_to_flush = 2;
-					} else {
-						cannotFlush = true;
 					}
+					break;
+
+				case Data.Busy:
+					bytes_to_flush = 1;
 					break;
 
 				default:
 					// Unknown command, just get rid of it
+					bytes_to_flush = 1;
 			}
 
-			if (cannotFlush) {
+			if (bytes_to_flush === 0) {
 				break;
 			}
 
@@ -299,12 +307,31 @@
 	async function toggleLaser() {
 		if (laser_fr) {
 			if (laser) {
-				writeData(Cmd.TurnOffLaser)
+				await writeData(Cmd.TurnOffLaser)
 			} else {
-				writeData(Cmd.TurnOnLaser)
+				await writeData(Cmd.TurnOnLaser)
 			}
 		} else {
-			writeData(Cmd.AskLaser)
+			await writeData(Cmd.AskLaser)
+		}
+	}
+
+	async function sendMoveTo(event: MouseEvent) {
+		if (screen) {
+			const canvasRect = screen.getBoundingClientRect();
+			const mouseX = event.clientX - canvasRect.left;
+			const mouseY = event.clientY - canvasRect.top;
+
+			// Calculate normalized coordinates (between 0 and 1)
+			const normalizedX = mouseX / canvasRect.width;
+			const normalizedY = mouseY / canvasRect.height;
+
+			// Map normalized coordinates to your grid size (N and M)
+			const gridX = Math.floor(normalizedX * N);
+			const gridY = Math.floor(normalizedY * M);
+
+			// Send the MoveTo command and coordinates to your device
+			await writeData(Cmd.MoveTo + String.fromCharCode(gridX) + String.fromCharCode(gridY));
 		}
 	}
 
@@ -360,8 +387,7 @@
 	<div class="col-start-1 row-start-1 text-center grid place-content-center h-full w-full">
 		{#key ready}
 			<h2 in:fly={{ x: 30, duration: 500, delay: 400 }}>Nicolás Nobili</h2>
-		{/key}
-		{#key ready}
+
 			<h2 in:fly={{ x: 30, duration: 500, delay: 500 }}>Francisco Russo</h2>
 		{/key}
 	</div>
@@ -376,8 +402,7 @@
 	<div class="col-start-3 row-start-1 text-center grid place-content-center h-full w-full">
 		{#key ready}
 			<h2 in:fly={{ x: -30, duration: 500, delay: 400 }}>Facultad de Ingeniería de la UBA</h2>
-		{/key}
-		{#key ready}
+
 			<h2 in:fly={{ x: -30, duration: 500, delay: 500 }}>Laboratorio de Microprocesadores</h2>
 		{/key}
 	</div>
@@ -390,51 +415,45 @@
 			>
 				{ port ? "Desconectar" : "Conectar" }
 			</button>
-		{/key}
-		{#key ready}
+
 			<button disabled={!port || true}
-				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-				in:fly={{ x: 30, duration: 500, delay: 600 }}
-			>
-				Escanear todo (no implementado)
-			</button>
-		{/key}
-		{#key ready}
-			<button disabled={!port} on:click={() => writeData(Cmd.ScanRow)}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 700 }}
 			>
-				Escanear horizontalmente
+				Escanear todo (no implementado)
 			</button>
-		{/key}
-		{#key ready}
-			<button disabled={!port || true}
+
+			<button disabled={!port} on:click={() => writeData(Cmd.ScanRow)}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 800 }}
 			>
-				Escanear verticalmente (no implementado)
+				Escanear horizontalmente
 			</button>
-		{/key}
-		{#key ready}
-			<button disabled={!port} on:click={() => writeData(Cmd.SingleMeasure)}
+
+			<button disabled={!port} on:click={() => writeData(Cmd.ScanCol)}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
 				in:fly={{ x: 30, duration: 500, delay: 900 }}
+			>
+				Escanear verticalmente
+			</button>
+
+			<button disabled={!port} on:click={() => writeData(Cmd.SingleMeasure)}
+				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
+				in:fly={{ x: 30, duration: 500, delay: 1000 }}
 			>
 				Medir en posición actual
 			</button>
-		{/key}
-		{#key ready}
+
 			<button disabled={!port} on:click={toggleLaser}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-				in:fly={{ x: 30, duration: 500, delay: 900 }}
+				in:fly={{ x: 30, duration: 500, delay: 1100 }}
 			>
 				{laser_fr ? (laser ? 'Apagar' : 'Prender') : "Consultar"} láser
 			</button>
-		{/key}
-		{#key ready}
+		
 			<button disabled={!port} on:click={() => writeData(Cmd.Abort)}
 				class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-				in:fly={{ x: 30, duration: 500, delay: 900 }}
+				in:fly={{ x: 30, duration: 500, delay: 1200 }}
 			>
 				Abortar
 			</button>
@@ -442,27 +461,36 @@
 	</div>
 
 	<div class="col-start-2 row-start-2 row-span-2 h-full w-full grid place-items-center p-20">
-		<canvas class="h-full w-full" bind:this={screen} />
+		<canvas class="h-full w-full" bind:this={screen} on:click={sendMoveTo} />
 	</div>
 
-	<div class="col-start-3 row-start-2 h-full w-full gird place-items-center py-20">
-        <p class="text-lg">
-            <span class="underline">Ángulo A:</span> {angle_fr ? x : ""}
-            <br />
-			<span class="underline">Ángulo B:</span> {angle_fr ? y : ""}
-			<br />
-            <span class="underline">Profundidad:</span> {p ? p : ""}
-            <br />
-			<span class="underline">Láser:</span> {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
-			<br />
-            <span class="underline">Último comando enviado:</span> <span class="font-mono">{ascii_to_pictures(tx)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(tx)}</span>
-			<br />
-			<span class="underline">Último dato recibido:</span> <span class="font-mono">{ascii_to_pictures(rx)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(rx)}</span>
-			<br />
-			<span class="underline">Último debug:</span> <span class="font-mono">{ascii_to_pictures(debug)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(debug)}</span>
-			<br />
-			<span class="underline">Cola de lectura:</span> <span class="font-mono">{ascii_to_pictures(rx_queue)}</span><span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(rx_queue)}</span>
-        </p>
+	<div class="col-start-3 row-start-2 h-full w-full gird place-items-center pt-20">
+		{#key ready}
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 500 }}>
+				<span class="underline">Ángulo A:</span> {angle_fr ? x : ""}
+			</p>
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 600 }}>
+				<span class="underline">Ángulo B:</span> {angle_fr ? y : ""}
+			</p>
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 700 }}>
+				<span class="underline">Profundidad:</span> {p ? p : ""}
+			</p>
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 800 }}>
+				<span class="underline">Láser:</span> {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
+			</p>
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 900 }}>
+				<span class="underline">Último comando enviado:</span> <span class="font-mono">{ascii_to_pictures(tx)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(tx)}</span>
+			</p>
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 1000 }}>
+				<span class="underline">Último dato recibido:</span> <span class="font-mono">{ascii_to_pictures(rx)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(rx)}</span>
+			</p>
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 1100 }}>
+				<span class="underline">Último debug:</span> <span class="font-mono">{ascii_to_pictures(debug)}</span> <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(debug)}</span>
+			</p>
+			<p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 1200 }}>
+				<span class="underline">Cola de lectura:</span> <span class="font-mono">{ascii_to_pictures(rx_queue)}</span><span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm">{string_to_hex_string(rx_queue)}</span>
+			</p>
+		{/key}
 	</div>
 
 	<div class="col-start-3 row-start-3 h-full w-full p-10">
