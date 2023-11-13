@@ -70,17 +70,22 @@
 ; ------------------------------------------------------
 
 ; ESTADOS:
-.equ IDLE     = 0x00
-.equ MEDIR    = 0x01  ; A punto de medir (todavía no)
-.equ MIDIENDO = 0x02
-.equ DELAY    = 0x03
+.equ IDLE      = 0x00
+.equ MEDIR     = 0x01  ; A punto de medir (todavía no)
+.equ MIDIENDO  = 0x02
+.equ DELAY     = 0x03
+.equ PROCESAR_COMANDO = 0x04
+.equ WAIT_BYTE = 0x05
+.equ PROCESAR_BYTE = 0x06
 
 ; OBJETIVOS:
-.equ WAITING_COMMAND = 0x00
-.equ SCANNING_ROW    = 0x01
-.equ PRENDER_LASER   = 0x02
-.equ APAGAR_LASER    = 0x03
-.equ SINGLE_MEASURE  = 0x04
+.equ WAITING_COMMAND           = 0x00
+.equ SCANNING_ROW              = 0x01
+.equ PRENDER_LASER             = 0x02
+.equ APAGAR_LASER              = 0x03
+.equ SINGLE_MEASURE            = 0x04
+.equ WAITING_BYTES_MOVE_TO     = 0x05
+.equ WAITING_BYTES_SCAN_REGION = 0x06
 
 
 ; ------------------------------------------------------
@@ -90,12 +95,16 @@
 ; COMANDOS:
 .equ ABORT          = 'a'
 .equ SCAN_ROW       = 's'
+.equ SCAN_COL       = 't'
+.equ SCAN_ALL       = 'z'
+.equ SCAN_REGION    = 'w'
 .equ MEDIR_DIST     = 'm'
 .equ PING           = 'b'
 .equ ASK_POSITION   = 'p'
 .equ ASK_LASER      = 'l'
 .equ TURN_ON_LASER  = 'c'
 .equ TURN_OFF_LASER = 'd'
+.equ MOVE_TO        = 'x'
 
 ; DATA TYPES:
 .equ DONE             = 'f'
@@ -106,6 +115,7 @@
 .equ PONG             = 'b'
 .equ DEBUG            = 'o'
 .equ BUSY             = 'n'
+.equ WHAT             = 'w'
 
 
 ; ------------------------------------------------------
@@ -113,6 +123,8 @@
 ; ------------------------------------------------------
 
 .def zero       = r3
+.def bytes_restantes = r9
+.def lectura    = r10
 .def min_stepa  = r11
 .def min_stepb  = r12
 .def min_dist   = r13
@@ -127,7 +139,7 @@
 .def objetivo   = r22
 .def left_ovfs  = r23
 .def data_type  = r24
-.def lectura    = r25
+.def byte_recibido = r25
 
 
 ; ------------------------------------------------------

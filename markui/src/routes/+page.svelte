@@ -12,11 +12,15 @@
 		Abort           = "a",
 		Ping            = "b",
 		ScanRow         = "s",
+		ScanCol         = "t",
+		ScanAll         = "z",
 		SingleMeasure   = "m",
 		AskPosition     = "p",
 		AskLaser        = "l",
 		TurnOnLaser     = "c",
 		TurnOffLaser    = "d",
+		MoveTo          = "x",
+		ScanRegion      = "w",
 	}
 
 	// Reception
@@ -27,7 +31,8 @@
 		LaserOff    = "k",
 		Measurement = "m", // Expects 3 more numbers
 		Pong        = "b",
-		Debug       = "o",
+		Debug       = "o", // Expects 1 more number
+		Busy        = "n",
 	}
 
 	// Transmission of Data
@@ -171,11 +176,10 @@
 	// If there is an incomplete command, it leaves it there
 	async function flush_rx_queue() {
 
-		let cannotFlush = false;
 		while (rx_queue.length > 0) {
 			const data_type: Data = rx_queue[0] as Data;
 			const len = rx_queue.length;
-			let bytes_to_flush = 1;
+			let bytes_to_flush = 0;
 
 			switch (data_type) {
 				case Data.Measurement:
@@ -187,8 +191,6 @@
 						depthMap[x + N * y] = 255 - p;
 						recencyMap[x + N * y] = 255;
 						angle_fr = true;
-					} else {
-						cannotFlush = true;
 					}
 					break;
 
@@ -199,40 +201,46 @@
 						y = rx_queue.charCodeAt(2);
 						p = null;
 						angle_fr = true;
-					} else {
-						cannotFlush = true;
 					}
 					break;
 
 				case Data.Done:
+					bytes_to_flush = 1;
 					break;
 
 				case Data.LaserOn:
+					bytes_to_flush = 1;
 					laser = true;
 					laser_fr = true;
 					break;
 
 				case Data.LaserOff:
+					bytes_to_flush = 1;
 					laser = false;
 					laser_fr = true;
 					break;
 
 				case Data.Pong:
+					bytes_to_flush = 1;
 					break;
 
 				case Data.Debug:
 					if (len >= 2) {
+						debug = rx_queue.substring(0, 2);
 						bytes_to_flush = 2;
-					} else {
-						cannotFlush = true;
 					}
+					break;
+
+				case Data.Busy:
+					bytes_to_flush = 1;
 					break;
 
 				default:
 					// Unknown command, just get rid of it
+					bytes_to_flush = 1;
 			}
 
-			if (cannotFlush) {
+			if (bytes_to_flush === 0) {
 				break;
 			}
 

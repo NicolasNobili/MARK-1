@@ -31,7 +31,8 @@ handler_OVF0:
 	cpi objetivo, APAGAR_LASER
     breq objetivo_apagar_laser
 
-    ; Sin objetivo
+    ; Otro objetivo
+    cpi estado, IDLE
     rjmp handler_OVF0_end
 
 objetivo_scanning_row:
@@ -105,127 +106,18 @@ handler_URXC:
     push temp
 
     ; Leer caracter
-    lds temp, UDR0
+    lds byte_recibido, UDR0
 
-    ; La lectura de los siguientes comandos no modifican el estado
-    ; (a excepción de ABORT) y se pueden realizar siempre
+    ; Ver si esto es un byte extra de un comando
+    cpi estado, WAIT_BYTE
+    breq byte_extra_recibido
 
-    cpi temp, ABORT
-    breq comando_abort
-
-    cpi temp, PING
-    breq comando_ping
-
-    cpi temp, ASK_POSITION
-    breq comando_ask_position
-
-    cpi temp, ASK_LASER
-    breq comando_ask_laser
-
-    ; Para otros comandos, primero verificamos si estamos en IDLE o WAITING_COMMAND
-    ; Si no, devolvemos que estamos ocupados
-    cpi estado, IDLE
-    brne send_busy
-
-    ; Leer comando
-
-    cpi temp, SCAN_ROW
-    breq comando_scan_row
-
-    cpi temp, MEDIR_DIST
-    breq comando_medir_dist
-
-    cpi temp, TURN_ON_LASER
-    breq comando_turn_on_laser
-
-    cpi temp, TURN_OFF_LASER
-    breq comando_turn_off_laser
-
-    ; Comando desconocido
+    ; Interpretamos como un comando o inicio de comando en sí
+    ldi estado, PROCESAR_COMANDO
     rjmp handler_URXC_end
 
-comando_abort:
-    ; Nos quedamos donde estamos
-    ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
-
-    rjmp handler_URXC_end
-
-comando_ping:
-    ; Ping - pong
-    ldi data_type, PONG
-    rcall send_data
-
-    rjmp handler_URXC_end
-
-comando_ask_position:
-    ; Devolvemos la posición
-    ldi data_type, CURRENT_POSITION
-    rcall send_data
-
-    rjmp handler_URXC_end
-
-comando_ask_laser:
-    ; Devolvemos el estado actual del láser
-    sbis PORTD, LASER_PIN
-    ldi data_type, LASER_OFF
-    sbic PORTD, LASER_PIN
-    ldi data_type, LASER_ON
-    rcall send_data
-
-    rjmp handler_URXC_end
-
-comando_scan_row:
-    ; Mover el servo A al mínimo
-    ldi stepa, 0
-    rcall actualizar_OCR1A
-
-    ; Notificar del cambio de posición
-    ldi data_type, CURRENT_POSITION
-    rcall send_data
-
-    ; Hacer un delay por overflows para
-    ; dar tiempo al movimiento
-    ldi left_ovfs, DELAY_MOVIMIENTO
-    ldi estado, DELAY
-    rcall start_timer0
-
-    ; Setear la distancia mínima en 0xFF
-	clr min_dist
-	dec min_dist
-
-    ; Actualizar objetivo
-    ldi objetivo, SCANNING_ROW
-
-	rjmp handler_URXC_end
-
-comando_medir_dist:
-    ; Queremos medir solo una vez
-	ldi estado, MEDIR
-	ldi objetivo, SINGLE_MEASURE
-
-    rjmp handler_URXC_end
-
-comando_turn_on_laser:
-	; Encender láser y notificar cambio de estado
-	sbi PORTD, LASER_PIN
-    ldi data_type, LASER_ON
-    rcall send_data
-
-    rjmp handler_URXC_end
-
-comando_turn_off_laser:
-	; Apagar láser y notificar cambio de estado
-	cbi PORTD, LASER_PIN
-    ldi data_type, LASER_OFF
-    rcall send_data
-
-    rjmp handler_URXC_end
-
-send_busy:
-    ldi data_type, BUSY
-    rcall send_data
-
+byte_extra_recibido:
+    ldi estado, PROCESAR_BYTE
     rjmp handler_URXC_end
 
 handler_URXC_end:
@@ -296,7 +188,7 @@ process_measure:
 	lds temp, TCNT2
 	lsr count_ovfs
 	ror temp
-	mov lectura,temp
+	mov lectura, temp
 	
     ; Comparar con mínimo
 	cp lectura, min_dist

@@ -98,6 +98,9 @@
     <Compile Include="MARK1_servos.asm">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="TrashBin.asm">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Assembler.targets" />
 </Project>
