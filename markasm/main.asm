@@ -171,9 +171,9 @@ main_procesar_comando:
     cpi byte_recibido, ASK_LASER
     breq comando_ask_laser
 
-    ; Para otros comandos, primero verificamos si estamos en IDLE
+    ; Para otros comandos, primero verificamos si estamos en WAITING_COMMAND
     ; Si no, devolvemos que estamos ocupados
-    cpi estado, IDLE
+    cpi objetivo, WAITING_COMMAND
     brne send_busy
 
     ; Leer comando
@@ -196,6 +196,7 @@ main_procesar_comando:
     ; Comando desconocido
     ldi data_type, WHAT
     rcall send_data
+	ldi estado,IDLE
     rjmp main_loop
 
 comando_abort:
@@ -209,6 +210,7 @@ comando_ping:
     ; Ping - pong
     ldi data_type, PONG
     rcall send_data
+	ldi estado,IDLE
 
     rjmp main_loop
 
@@ -216,6 +218,7 @@ comando_ask_position:
     ; Devolvemos la posición
     ldi data_type, CURRENT_POSITION
     rcall send_data
+	ldi estado,IDLE
 
     rjmp main_loop
 
@@ -226,12 +229,14 @@ comando_ask_laser:
     sbic PORTD, LASER_PIN
     ldi data_type, LASER_ON
     rcall send_data
+	ldi estado,IDLE
 
     rjmp main_loop
 
 send_busy:
     ldi data_type, BUSY
     rcall send_data
+	ldi estado,IDLE
 
     rjmp main_loop
 
@@ -281,6 +286,7 @@ comando_turn_on_laser:
 	sbi PORTD, LASER_PIN
     ldi data_type, LASER_ON
     rcall send_data
+	ldi estado,IDLE
 
     rjmp main_loop
 
@@ -289,6 +295,7 @@ comando_turn_off_laser:
 	cbi PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     rcall send_data
+	ldi estado,IDLE
 
     rjmp main_loop
 
