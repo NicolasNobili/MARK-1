@@ -287,8 +287,8 @@
 		tx = cmd;
 		const encoder = new TextEncoder();
 		const writer = port.writable.getWriter();
-		console.log("Enviado: " + (cmd + "\r\n"));
-		await writer.write(encoder.encode(cmd + "\r\n"));
+		console.log("Enviado: " + (cmd));
+		await writer.write(encoder.encode(cmd));
 		writer.releaseLock();
 	}
 
