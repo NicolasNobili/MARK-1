@@ -55,7 +55,8 @@
 
 ; PORTB:
 .equ ULTRASOUND_ECHO = 0
-.equ SERVO_PIN       = 1
+.equ SERVOA_PIN      = 1
+.equ SERVOB_PIN      = 2
 .equ ULTRASOUND_TRIG = 3
 
 ; PORTD:

@@ -123,14 +123,15 @@ comando_byte_move_to:
 
 comando_byte_stepa:
     ; Todavía falta stepb...
-    mov stepa, temp
+    mov stepa, byte_recibido
     dec bytes_restantes
+    ldi estado, WAIT_BYTE
 
     rjmp main_loop
 
 comando_byte_stepb:
     ; Ya tenemos todos los datos! Podemos proceder
-    mov stepb, temp
+    mov stepb, byte_recibido
 
     ; Mover
     rcall actualizar_OCR1A

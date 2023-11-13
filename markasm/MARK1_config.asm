@@ -12,11 +12,12 @@
 
 config_ports:
     ; Evitar pulso no deseado al comienzo del programa
-	out PORTB,zero
+	out PORTB, zero
 
 	; PORTB
-	cbi PORTB,ULTRASOUND_TRIG
-	sbi DDRB, SERVO_PIN
+	cbi PORTB, ULTRASOUND_TRIG
+	sbi DDRB, SERVOA_PIN
+    sbi DDRB, SERVOB_PIN
 	sbi DDRB, ULTRASOUND_TRIG
 	cbi DDRB, ULTRASOUND_ECHO
 
