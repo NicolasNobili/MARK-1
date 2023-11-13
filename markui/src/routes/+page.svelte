@@ -33,6 +33,7 @@
 		Pong        = "b",
 		Debug       = "o", // Expects 1 more number
 		Busy        = "n",
+		What        = "w",
 	}
 
 	// Transmission of Data
@@ -232,6 +233,10 @@
 					break;
 
 				case Data.Busy:
+					bytes_to_flush = 1;
+					break;
+
+				case Data.What:
 					bytes_to_flush = 1;
 					break;
 
