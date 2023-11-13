@@ -49,6 +49,7 @@
 
   // Transmission of Data
   let tx_list: CommandType[] = [];
+  let tx_idx = 0;
 
   // Serial communication
   let port: any;
@@ -59,6 +60,7 @@
   // Reception of Data
   let rx_queue = '';
   let rx_list: DataType[] = [];
+  let rx_idx = 0;
   let angle_fr = false;
   let laser_fr = false;
 
@@ -261,8 +263,9 @@
 
       const new_rx = {
         content: rx_queue.substring(0, bytes_to_flush),
-        id: rx_list.length
+        id: rx_idx
       };
+      rx_idx++;
       rx_list = [new_rx, ...rx_list];
       rx_queue = rx_queue.substring(bytes_to_flush);
     }
@@ -317,8 +320,9 @@
     }
     const new_tx = {
       content: cmd,
-      id: tx_list.length
+      id: tx_idx
     };
+    tx_idx++;
     tx_list = [new_tx, ...tx_list];
     if (tx_list.length > 6) tx_list.pop();
     console.log(tx_list);
