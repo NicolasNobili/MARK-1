@@ -41,25 +41,34 @@
 
 .org INT_VECTORS_SIZE
 main:
-    clr zero
-    ldi stepa, STEPA_INICIAL
-    ldi stepb, STEPB_INICIAL
-    ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
-
 	; Stack pointer
 	ldi temp, LOW(RAMEND)
 	out spl, temp
 	ldi temp, HIGH(RAMEND)
 	out sph, temp
 	
+	clr zero
+    ldi stepa, STEPA_INICIAL
+    ldi stepb, STEPB_INICIAL
+    ldi estado, IDLE
+    ldi objetivo, WAITING_COMMAND
+
 	rcall config_ports
 	rcall config_timer0
 	rcall config_timer1
 	rcall config_USART
 	rcall config_int0
     rcall config_pci0
+
+	ldi data_type,CURRENT_POSITION
+	rcall send_data
 	
+	sbis PORTD, LASER_PIN
+    ldi data_type, LASER_OFF
+    sbic PORTD, LASER_PIN
+    ldi data_type, LASER_ON
+    rcall send_data
+		
 	sei
     
 
