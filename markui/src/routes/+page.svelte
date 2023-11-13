@@ -300,6 +300,7 @@
 		try {
 			const readerData = await reader.read();
 			const readData = new TextDecoder().decode(readerData.value);
+			console.log("Recibido:" + readData);
 			rx_queue += readData;
 			flush_rx_queue();
 		} catch (err) {
