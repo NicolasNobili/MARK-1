@@ -475,10 +475,14 @@
 
     try {
       const readerData = await reader.read();
-      const readBytes = Array.from(readerData.value) as number[];
-      console.log("Recibido: " + to_ascii(readBytes));
-      rx_queue = [...rx_queue, ...readBytes];
-      flush_rx_queue();
+      if (readerData.done) {
+        console.log("Recepción finalizada!");
+      } else {
+        const readBytes = Array.from(readerData.value) as number[];
+        console.log("Recibido: " + to_ascii(readBytes));
+        rx_queue = [...rx_queue, ...readBytes];
+        flush_rx_queue();
+      }
     } catch (err) {
       const errorMessage = `error reading data: ${err}`;
       console.error(errorMessage);
@@ -587,13 +591,13 @@
   });
 
   onDestroy(() => {
-    clearInterval(pollInterval);
-    console.log("Destroyed");
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame);
-    }
-    if (port) {
-      toggleConection();
+    if (browser) {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+      if (port) {
+        toggleConection();
+      }
     }
   });
 </script>
