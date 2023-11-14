@@ -19,6 +19,7 @@ config_ports:
 	sbi DDRB, SERVOA_PIN
     sbi DDRB, SERVOB_PIN
 	sbi DDRB, ULTRASOUND_TRIG
+    sbi DDRB, ACTIVE_LED
 	cbi DDRB, ULTRASOUND_ECHO
 
 	; PORTD

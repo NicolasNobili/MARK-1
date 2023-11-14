@@ -53,6 +53,8 @@ main:
     ldi estado, IDLE
     ldi objetivo, WAITING_COMMAND
 
+    sbi PORTB, ACTIVE_LED
+
 	rcall config_ports
 	rcall config_timer0
 	rcall config_timer1
@@ -100,6 +102,7 @@ main_loop:
 main_sleep:
 	cpi objetivo, WAITING_COMMAND
 	brne main_loop
+    cbi PORTB, ACTIVE_LED
 
     ; Modo Power-Save. Mantiene prendida la USART para despertarse
 	ldi temp, (0 << SM2) | (1 << SM1) | (0 << SM0) | (1 << SE)
@@ -107,6 +110,7 @@ main_sleep:
 	sleep
 	out MCUCR, zero
 
+    sbi PORTB, ACTIVE_LED
 	rjmp main_loop
 
 ; ------------------------------------------------------

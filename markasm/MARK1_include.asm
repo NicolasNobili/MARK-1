@@ -58,6 +58,7 @@
 .equ SERVOA_PIN      = 1
 .equ SERVOB_PIN      = 2
 .equ ULTRASOUND_TRIG = 3
+.equ ACTIVE_LED      = 4
 
 ; PORTD:
 .equ BT_RX     = 0
