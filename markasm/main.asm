@@ -104,7 +104,7 @@ main_sleep:
 	brne main_loop
     cbi PORTB, ACTIVE_LED
 
-    ; Modo Power-Save. Mantiene prendida la USART para despertarse
+    ; Modo Power-Down. Mantiene prendida la USART para despertarse
 	ldi temp, (0 << SM2) | (1 << SM1) | (0 << SM0) | (1 << SE)
     out MCUCR, temp 
 	sleep
