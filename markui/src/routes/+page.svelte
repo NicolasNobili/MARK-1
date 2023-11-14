@@ -62,6 +62,7 @@
   let reader: any;
   let pollMilliseconds = 10;
   let pollInterval: number;
+  let busy = false;
 
   // Reception of Data
   let rx_queue: number[] = [];
@@ -204,6 +205,9 @@
     }
 
     isDrawing = false;
+    if (busy || !port) {
+      return;
+    }
     ({ x: endX, y: endY } = getFinalCoordinates(event));
 
     // First, respect format from top left to bot right (lower to higher)
@@ -368,6 +372,7 @@
           // Find null character
           const idx = rx_queue.indexOf(0);
           if (idx >= 0) {
+            busy = false;
             bytes_to_flush = idx + 1;
           }
           break;
@@ -643,14 +648,15 @@
         class="flex flex-row justify-between gap-1"
       >
         <button
-          disabled={!port || true}
+          disabled={!port || busy}
+          on:click={() => writeData(Cmd.ScanAll)}
           class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 w-full leading-none"
         >
           Escanear todo
         </button>
 
         <button
-          disabled={!port}
+          disabled={!port || busy}
           on:click={() => writeData(Cmd.ScanRow)}
           class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 w-full leading-none"
         >
@@ -658,7 +664,7 @@
         </button>
 
         <button
-          disabled={!port}
+          disabled={!port || busy}
           on:click={() => writeData(Cmd.ScanCol)}
           class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 w-full leading-none"
         >
@@ -667,7 +673,7 @@
       </div>
 
       <button
-        disabled={!port}
+        disabled={!port || busy}
         on:click={() => writeData(Cmd.SingleMeasure)}
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
         in:fly={{ x: 30, duration: 500, delay: 800 }}
@@ -676,7 +682,7 @@
       </button>
 
       <button
-        disabled={!port}
+        disabled={!port || busy}
         on:click={toggleLaser}
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
         in:fly={{ x: 30, duration: 500, delay: 900 }}
@@ -685,7 +691,7 @@
       </button>
 
       <button
-        disabled={!port}
+        disabled={!port || busy}
         on:click={() => writeData(Cmd.Abort)}
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
         in:fly={{ x: 30, duration: 500, delay: 1000 }}
@@ -694,8 +700,11 @@
       </button>
 
       <button
-        disabled={!port}
-        on:click={() => writeData(Cmd.GetInfo)}
+        disabled={!port || busy}
+        on:click={() => {
+          writeData(Cmd.GetInfo);
+          busy = true;
+        }}
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
         in:fly={{ x: 30, duration: 500, delay: 1100 }}
       >
@@ -708,7 +717,7 @@
       >
         <input
           bind:value={info_buffer}
-          disabled={!port}
+          disabled={!port || busy}
           class="focus:outline-none text-gray-800 font-mono w-full p-2 border-rose-900 rounded-md border-4 bg-gray-200 focus:bg-gray-50 transition-colors"
           type="text"
           on:keydown={(event) => {
@@ -725,7 +734,7 @@
           }}
         />
         <button
-          disabled={!port || info_buffer.length === 0}
+          disabled={!port || info_buffer.length === 0 || busy}
           on:click={() => {
             writeData(Cmd.WriteInfo + info_buffer, true);
             info_buffer = "";
