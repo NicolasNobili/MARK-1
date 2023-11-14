@@ -98,14 +98,14 @@ main_loop:
 ; ------------------------------------------------------
 
 main_sleep:
-	cpi objetivo,WAITING_COMMAND
+	cpi objetivo, WAITING_COMMAND
 	brne main_loop
 
     ; Modo Power-Save. Mantiene prendida la USART para despertarse
-	ldi temp, (1 << SM1) | (1 << SM0) | (1 << SE)
+	ldi temp, (0 << SM2) | (1 << SM1) | (0 << SM0) | (1 << SE)
     out MCUCR, temp 
 	sleep
-	out MCUCR,zero
+	out MCUCR, zero
 
 	rjmp main_loop
 
