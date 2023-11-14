@@ -77,9 +77,12 @@ main:
 ; ------------------------------------------------------
 
 main_loop:
+	
+	cpi estado, IDLE
+	breq main_sleep
 
     cpi estado, MEDIR
-    breq iniciar_medicion
+    breq main_iniciar_medicion
 
     cpi estado, PROCESAR_BYTE
     breq main_procesar_byte
@@ -89,7 +92,27 @@ main_loop:
 	
 	rjmp main_loop
 
-iniciar_medicion:
+
+; ------------------------------------------------------
+;						SLEEP
+; ------------------------------------------------------
+
+main_sleep:
+	cpi objetivo,WAITING_COMMAND
+	brne main_loop
+
+	ldi temp, (1 << SM1) | (1 << SM0) | (1 << SE); Modo Power-Save. Mantine prendida la USART para despertarse
+    out MCUCR, temp 
+	sleep
+	out MCUCR,zero
+
+	rjmp main_loop
+
+; ------------------------------------------------------
+;                  INICIAR MEDICION
+; ------------------------------------------------------
+
+main_iniciar_medicion:
     ; Esperamos que el ECHO haga una interrupción
     ; Mientras tanto no hay que hacer nada
     ldi estado, MIDIENDO
@@ -155,6 +178,11 @@ comando_byte_stepb:
 comando_byte_scan_region:
     ; HACER
     rjmp main_loop
+
+
+; ------------------------------------------------------
+;                 PROCESAR COMANDO
+; ------------------------------------------------------
 
 main_procesar_comando:
     ; La lectura de los siguientes comandos no modifican el estado

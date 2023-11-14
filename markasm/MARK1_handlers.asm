@@ -226,6 +226,9 @@ continuar_scanning_row:
     ldi estado, DELAY
     ldi left_ovfs, DELAY_STEP
     rcall start_timer0
+	
+	ldi data_type, CURRENT_POSITION
+	rcall send_data
 
     rjmp handler_PCI0_end
 
