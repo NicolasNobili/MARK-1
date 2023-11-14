@@ -36,7 +36,7 @@
 
 
 ; ------------------------------------------------------
-;                  INICIALIZACIÓN
+;                  INICIALIZACIï¿½N
 ; ------------------------------------------------------
 
 .org INT_VECTORS_SIZE
@@ -101,7 +101,8 @@ main_sleep:
 	cpi objetivo,WAITING_COMMAND
 	brne main_loop
 
-	ldi temp, (1 << SM1) | (1 << SM0) | (1 << SE); Modo Power-Save. Mantine prendida la USART para despertarse
+    ; Modo Power-Save. Mantiene prendida la USART para despertarse
+	ldi temp, (1 << SM1) | (1 << SM0) | (1 << SE)
     out MCUCR, temp 
 	sleep
 	out MCUCR,zero
@@ -113,7 +114,7 @@ main_sleep:
 ; ------------------------------------------------------
 
 main_iniciar_medicion:
-    ; Esperamos que el ECHO haga una interrupción
+    ; Esperamos que el ECHO haga una interrupciï¿½n
     ; Mientras tanto no hay que hacer nada
     ldi estado, MIDIENDO
     rcall send_trigger
@@ -121,18 +122,18 @@ main_iniciar_medicion:
     rjmp main_loop
 
 main_procesar_byte:
-    ; Vemos para qué queríamos este byte
+    ; Vemos para quï¿½ querï¿½amos este byte
     cpi objetivo, WAITING_BYTES_MOVE_TO
     breq comando_byte_move_to
 
     cpi objetivo, WAITING_BYTES_SCAN_REGION
     breq comando_byte_scan_region
 
-    ; No deberíamos llegar acá
+    ; No deberï¿½amos llegar acï¿½
     rjmp main_loop
 
 comando_byte_move_to:
-    ; Vemos a qué corresponde este byte
+    ; Vemos a quï¿½ corresponde este byte
     mov temp, bytes_restantes
 
     cpi temp, 2
@@ -141,11 +142,11 @@ comando_byte_move_to:
     cpi temp, 1
     breq comando_byte_stepb
 
-    ; No deberíamos llegar acá
+    ; No deberï¿½amos llegar acï¿½
     rjmp main_loop
 
 comando_byte_stepa:
-    ; Todavía falta stepb...
+    ; Todavï¿½a falta stepb...
     mov stepa, byte_recibido
     dec bytes_restantes
     ldi estado, WAIT_BYTE
@@ -186,7 +187,7 @@ comando_byte_scan_region:
 
 main_procesar_comando:
     ; La lectura de los siguientes comandos no modifican el estado
-    ; (a excepción de ABORT) y se pueden realizar siempre
+    ; (a excepciï¿½n de ABORT) y se pueden realizar siempre
 
     cpi byte_recibido, ABORT
     breq comando_abort
@@ -244,7 +245,7 @@ comando_ping:
     rjmp main_loop
 
 comando_ask_position:
-    ; Devolvemos la posición
+    ; Devolvemos la posiciï¿½n
     ldi data_type, CURRENT_POSITION
     rcall send_data
 	ldi estado,IDLE
@@ -252,7 +253,7 @@ comando_ask_position:
     rjmp main_loop
 
 comando_ask_laser:
-    ; Devolvemos el estado actual del láser
+    ; Devolvemos el estado actual del lï¿½ser
     sbis PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     sbic PORTD, LASER_PIN
@@ -270,11 +271,11 @@ send_busy:
     rjmp main_loop
 
 comando_scan_row:
-    ; Mover el servo A al mínimo
+    ; Mover el servo A al mï¿½nimo
     ldi stepa, 0
     rcall actualizar_OCR1A
 
-    ; Notificar del cambio de posición
+    ; Notificar del cambio de posiciï¿½n
     ldi data_type, CURRENT_POSITION
     rcall send_data
 
@@ -284,7 +285,7 @@ comando_scan_row:
     ldi estado, DELAY
     rcall start_timer0
 
-    ; Setear la distancia mínima en 0xFF
+    ; Setear la distancia mï¿½nima en 0xFF
 	clr min_dist
 	dec min_dist
 
@@ -294,7 +295,7 @@ comando_scan_row:
 	rjmp main_loop
 
 comando_move_to:
-    ; Necesitamos 2 bytes más (stepa, stepb)
+    ; Necesitamos 2 bytes mï¿½s (stepa, stepb)
     clr bytes_restantes
     inc bytes_restantes
     inc bytes_restantes
@@ -311,7 +312,7 @@ comando_medir_dist:
     rjmp main_loop
 
 comando_turn_on_laser:
-	; Encender láser y notificar cambio de estado
+	; Encender lï¿½ser y notificar cambio de estado
 	sbi PORTD, LASER_PIN
     ldi data_type, LASER_ON
     rcall send_data
@@ -320,7 +321,7 @@ comando_turn_on_laser:
     rjmp main_loop
 
 comando_turn_off_laser:
-	; Apagar láser y notificar cambio de estado
+	; Apagar lï¿½ser y notificar cambio de estado
 	cbi PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     rcall send_data

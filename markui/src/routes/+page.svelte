@@ -60,9 +60,10 @@
   // Serial communication
   let port: any;
   let reader: any;
-  let pollMilliseconds = 10;
+  const pollMilliseconds = 10;
   let pollInterval: number;
   let busy = false;
+  const connectionDelay = 1; // ms
 
   // Reception of Data
   let rx_queue: number[] = [];
@@ -407,19 +408,24 @@
   async function toggleConection() {
     if (!port) {
       try {
+        busy = true;
         // @ts-ignore
         port = await navigator.serial.requestPort();
         await port.open({ baudRate: 9600 });
-        await writeData(Cmd.AskPosition);
-        await writeData(Cmd.AskLaser);
-        await writeData(Cmd.GetInfo);
-        reader = port.readable.getReader();
-        pollInterval = setInterval(readData, pollMilliseconds);
+        setTimeout(async () => {
+          await writeData(Cmd.AskPosition);
+          await writeData(Cmd.AskLaser);
+          await writeData(Cmd.GetInfo);
+          busy = true;
+          reader = port.readable.getReader();
+          pollInterval = setInterval(readData, pollMilliseconds);
+        }, connectionDelay);
       } catch (error) {
         if (error instanceof Error) {
           alert(error.name + ": " + error.message);
         }
         port = null;
+        busy = false;
       }
     } else {
       clearInterval(pollInterval);
