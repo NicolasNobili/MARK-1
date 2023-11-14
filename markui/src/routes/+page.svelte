@@ -696,7 +696,7 @@
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
         in:fly={{ x: 30, duration: 500, delay: 1000 }}
       >
-        Cancelar
+        Cancelar acción
       </button>
 
       <button
@@ -775,7 +775,7 @@
           }}
           class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 leading-none px-2"
         >
-          Envíar
+          Enviar
         </button>
       </div>
     {/key}
