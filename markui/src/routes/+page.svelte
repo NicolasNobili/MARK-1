@@ -1,55 +1,61 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
-  import * as THREE from 'three';
-  import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-  import { tweened } from 'svelte/motion';
-  import { cubicOut } from 'svelte/easing';
-  import { browser } from '$app/environment';
-  import { flip } from 'svelte/animate';
+  import { onMount, onDestroy } from "svelte";
+  import { fade, fly } from "svelte/transition";
+  import * as THREE from "three";
+  import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+  import { tweened } from "svelte/motion";
+  import { cubicOut } from "svelte/easing";
+  import { browser } from "$app/environment";
+  import { flip } from "svelte/animate";
 
   interface DataType {
-    content: string;
+    content: number[];
     id: number;
   }
 
   interface CommandType {
-    content: string;
+    content: number[];
     id: number;
   }
 
   // Transmission
   enum Cmd {
-    Abort = 'a',
-    Ping = 'b',
-    ScanRow = 's',
-    ScanCol = 't',
-    ScanAll = 'z',
-    SingleMeasure = 'm',
-    AskPosition = 'p',
-    AskLaser = 'l',
-    TurnOnLaser = 'c',
-    TurnOffLaser = 'd',
-    MoveTo = 'x', // Accompanied by 2 more bytes
-    ScanRegion = 'w' // Accompanied by 4 more bytes
+    Abort = "a",
+    Ping = "b",
+    ScanRow = "s",
+    ScanCol = "t",
+    ScanAll = "z",
+    SingleMeasure = "m",
+    AskPosition = "p",
+    AskLaser = "l",
+    TurnOnLaser = "c",
+    TurnOffLaser = "d",
+    MoveTo = "x", // Accompanied by 2 more bytes
+    ScanRegion = "w", // Accompanied by 4 more bytes
+    GetInfo = "i",
+    WriteInfo = "h", // Accompanied by more bytes
   }
 
   // Reception
   enum Data {
-    Done = 'f',
-    Position = 'p', // Expects 2 more numbers
-    LaserOn = 'j',
-    LaserOff = 'k',
-    Measurement = 'm', // Expects 3 more numbers
-    Pong = 'b',
-    Debug = 'o', // Expects 1 more number
-    Busy = 'n',
-    What = 'w'
+    ScanDone = "f",
+    Position = "p", // Expects 2 more numbers
+    LaserOn = "j",
+    LaserOff = "k",
+    Measurement = "m", // Expects 3 more numbers
+    Pong = "b",
+    Debug = "o", // Expects 1 more number
+    Busy = "n",
+    What = "w",
+    Info = "i", // More bytes, until \0
+    InfoWriteDone = "h",
   }
 
   // Transmission of Data
   let tx_list: CommandType[] = [];
   let tx_idx = 0;
+  let tx_buffer = "";
+  let info_buffer = "";
 
   // Serial communication
   let port: any;
@@ -58,7 +64,7 @@
   let pollInterval: number;
 
   // Reception of Data
-  let rx_queue = '';
+  let rx_queue: number[] = [];
   let rx_list: DataType[] = [];
   let rx_idx = 0;
   let angle_fr = false;
@@ -66,7 +72,7 @@
 
   // Angle A
   const N = 21;
-  let x = 0;
+  let x = Math.round(N / 2);
   let smoothx = tweened(x, { easing: cubicOut });
   $: $smoothx = x;
   $: yaw = ($smoothx / N - 0.5) * Math.PI;
@@ -74,7 +80,7 @@
 
   // Angle B
   const M = 21;
-  let y = 0;
+  let y = Math.round(M / 2);
   let smoothy = tweened(y, { easing: cubicOut });
   $: $smoothy = y;
   $: pitch = ($smoothy / M - 1) * Math.PI;
@@ -93,6 +99,15 @@
   let cursorPadding = 1;
   let animationFrame: null | number = null;
 
+  // Screen controls
+  let isDrawing = false;
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
+  let endX = 0;
+  let endY = 0;
+
   // 3D Model
   let scene3d: Element;
   let camera: THREE.PerspectiveCamera;
@@ -104,42 +119,123 @@
   // Page load animations
   let ready = false;
 
-  // Converts "abc" to "61 62 63"
-  function string_to_hex_string(s: string) {
-    let hexAsciiArray = [];
+  function to_bytes(s: string) {
+    let bytes = [];
 
     for (let i = 0; i < s.length; i++) {
-      const charCode = s.charCodeAt(i);
-      const hexAscii = charCode.toString(16).toUpperCase();
-      const paddedHexAscii = hexAscii.length === 1 ? '0' + hexAscii : hexAscii;
-      hexAsciiArray.push(paddedHexAscii);
+      bytes.push(s.charCodeAt(i));
     }
 
-    return hexAsciiArray.join(' ');
+    return bytes;
+  }
+
+  function to_hex_string(n: number[]) {
+    let hexAscii = [];
+
+    for (let i = 0; i < n.length; i++) {
+      const hexAsciiCharacter = n[i].toString(16).toUpperCase();
+      const paddedHexAscii = hexAscii.length === 1 ? "0" + hexAscii : hexAscii;
+      hexAscii.push(hexAsciiCharacter);
+    }
+
+    return hexAscii.join(" ");
   }
 
   // Converts control characters to ␀, ␁, ␂, etc.
-  function ascii_to_pictures(s: string) {
-    let ans = '';
+  function to_ascii(n: number[]) {
+    let ascii = "";
 
-    for (let i = 0; i < s.length; i++) {
-      let charCode = s.charCodeAt(i);
+    for (let i = 0; i < n.length; i++) {
+      let charCode = n[i];
       if (charCode >= 0 && charCode <= 26) {
-        charCode += 0x2400 - 1;
+        charCode += 0x2400;
       }
-      ans += String.fromCharCode(charCode);
+      ascii += String.fromCharCode(charCode);
     }
 
-    return ans;
+    return ascii;
+  }
+
+  function getFinalCoordinates(event: MouseEvent) {
+    const canvasRect = screen.getBoundingClientRect();
+    const mouseX = event.clientX - canvasRect.left;
+    const mouseY = event.clientY - canvasRect.top;
+
+    // Calculate normalized coordinates (between 0 and 1)
+    const normalizedX = mouseX / canvasRect.width;
+    const normalizedY = mouseY / canvasRect.height;
+
+    // Map normalized coordinates to your grid size (N and M)
+    const gridX = Math.floor(normalizedX * N);
+    const gridY = Math.floor(normalizedY * M);
+
+    return {
+      x: gridX,
+      y: gridY,
+    };
+  }
+
+  function handleMouseDown(event: MouseEvent) {
+    if (!screen) {
+      return;
+    }
+
+    isDrawing = true;
+    ({ x: startX, y: startY } = getFinalCoordinates(event));
+    ({ x: currentX, y: currentY } = getFinalCoordinates(event));
+  }
+
+  function handleMouseMove(event: MouseEvent) {
+    if (!screen) {
+      return;
+    }
+
+    ({ x: currentX, y: currentY } = getFinalCoordinates(event));
+  }
+
+  async function handleMouseUp(event: MouseEvent) {
+    if (!screen) {
+      return;
+    }
+
+    if (!isDrawing) {
+      return;
+    }
+
+    isDrawing = false;
+    ({ x: endX, y: endY } = getFinalCoordinates(event));
+
+    // First, respect format from top left to bot right (lower to higher)
+    if (startX > endX) {
+      [startX, endX] = [endX, startX];
+    }
+    if (startY > endY) {
+      [startY, endY] = [endY, startY];
+    }
+
+    // Check if only one point
+    if (startX == endX && startY == endY) {
+      await writeData(Cmd.MoveTo + String.fromCharCode(startX) + String.fromCharCode(startY));
+      return;
+    }
+
+    // Else, scan region
+    await writeData(
+      Cmd.ScanRegion +
+        String.fromCharCode(startX) +
+        String.fromCharCode(startY) +
+        String.fromCharCode(endX) +
+        String.fromCharCode(endY),
+    );
   }
 
   // Draws the depth map in the middle of the screen
   function draw() {
     if (!screen) {
-      console.error('Cannot draw when screen is not available!');
+      console.error("Cannot draw when screen is not available!");
     }
 
-    const ctx = screen.getContext('2d');
+    const ctx = screen.getContext("2d");
 
     // Black background
     // // @ts-ignore
@@ -166,7 +262,7 @@
           i * (screen.width / N),
           j * (screen.height / M),
           screen.width / N,
-          screen.height / M
+          screen.height / M,
         );
 
         // Draw cursor
@@ -174,13 +270,28 @@
           // @ts-ignore
           // ctx.globalAlpha = 0.1;
           // @ts-ignore
-          ctx.fillStyle = 'rgb(0, 100, 255)';
+          ctx.fillStyle = "rgb(0, 100, 255)";
           // @ts-ignore
           ctx.fillRect(
             $smoothx * (screen.width / N) + cursorPadding,
             $smoothy * (screen.height / M) + cursorPadding,
             screen.width / N - 2 * cursorPadding,
-            screen.height / M - 2 * cursorPadding
+            screen.height / M - 2 * cursorPadding,
+          );
+        }
+
+        // Draw selection
+        if (isDrawing) {
+          const selectionWidth = (Math.max(1, currentX - startX + 1) / N) * screen.width;
+          const selectionHeight = (Math.max(1, currentY - startY + 1) / M) * screen.height;
+          // @ts-ignore
+          ctx.fillStyle = "rgb(50, 100, 50)";
+          // @ts-ignore
+          ctx.fillRect(
+            startX * (screen.width / N),
+            startY * (screen.height / M),
+            selectionWidth,
+            selectionHeight,
           );
         }
       }
@@ -191,7 +302,7 @@
   // If there is an incomplete command, it leaves it there
   async function flush_rx_queue() {
     while (rx_queue.length > 0) {
-      const data_type: Data = rx_queue[0] as Data;
+      const data_type = String.fromCharCode(rx_queue[0]);
       const len = rx_queue.length;
       let bytes_to_flush = 0;
 
@@ -199,9 +310,9 @@
         case Data.Measurement:
           if (len >= 4) {
             bytes_to_flush = 4;
-            x = rx_queue.charCodeAt(1);
-            y = rx_queue.charCodeAt(2);
-            p = rx_queue.charCodeAt(3);
+            x = rx_queue[1];
+            y = rx_queue[2];
+            p = rx_queue[3];
             depthMap[x + N * y] = 255 - p;
             recencyMap[x + N * y] = 255;
             angle_fr = true;
@@ -211,14 +322,14 @@
         case Data.Position:
           if (len >= 3) {
             bytes_to_flush = 3;
-            x = rx_queue.charCodeAt(1);
-            y = rx_queue.charCodeAt(2);
+            x = rx_queue[1];
+            y = rx_queue[2];
             p = null;
             angle_fr = true;
           }
           break;
 
-        case Data.Done:
+        case Data.ScanDone:
           bytes_to_flush = 1;
           break;
 
@@ -252,6 +363,13 @@
           bytes_to_flush = 1;
           break;
 
+        case Data.Info:
+          break;
+
+        case Data.InfoWriteDone:
+          bytes_to_flush = 1;
+          break;
+
         default:
           // Unknown command, just get rid of it
           bytes_to_flush = 1;
@@ -262,12 +380,15 @@
       }
 
       const new_rx = {
-        content: rx_queue.substring(0, bytes_to_flush),
-        id: rx_idx
+        content: rx_queue.slice(0, bytes_to_flush),
+        id: rx_idx,
       };
       rx_idx++;
       rx_list = [new_rx, ...rx_list];
-      rx_queue = rx_queue.substring(bytes_to_flush);
+      if (rx_list.length > 6) {
+        rx_list.pop();
+      }
+      rx_queue = rx_queue.slice(bytes_to_flush);
     }
   }
 
@@ -280,11 +401,12 @@
         await port.open({ baudRate: 9600 });
         await writeData(Cmd.AskPosition);
         await writeData(Cmd.AskLaser);
+        await writeData(Cmd.GetInfo);
         reader = port.readable.getReader();
         pollInterval = setInterval(readData, pollMilliseconds);
       } catch (error) {
         if (error instanceof Error) {
-          alert(error.name + ': ' + error.message);
+          alert(error.name + ": " + error.message);
         }
         port = null;
       }
@@ -301,7 +423,7 @@
         await port.close();
       } catch (error) {
         if (error instanceof Error) {
-          alert(error.name + ': ' + error.message);
+          alert(error.name + ": " + error.message);
         }
       }
 
@@ -313,38 +435,43 @@
   }
 
   // Send data over the serial port
-  async function writeData(cmd: string) {
+  async function writeData(cmd: string, ending_null: boolean = false) {
+    const bytes_cmd = to_bytes(cmd);
+    if (ending_null) {
+      bytes_cmd.push(0);
+    }
     if (!port) {
-      console.error('Cannot write on closed port!');
+      console.error("Cannot write on closed port!");
       return;
     }
     const new_tx = {
-      content: cmd,
-      id: tx_idx
+      content: bytes_cmd,
+      id: tx_idx,
     };
     tx_idx++;
     tx_list = [new_tx, ...tx_list];
-    if (tx_list.length > 6) tx_list.pop();
-    console.log(tx_list);
+    if (tx_list.length > 6) {
+      tx_list.pop();
+    }
     const encoder = new TextEncoder();
+    console.log("Enviado: " + cmd);
     const writer = port.writable.getWriter();
-    console.log('Enviado: ' + cmd);
-    await writer.write(encoder.encode(cmd));
+    await writer.write(new Uint8Array(bytes_cmd));
     writer.releaseLock();
   }
 
   // Read data over the serial port
   async function readData() {
     if (!reader) {
-      console.log('Reader disconnected!');
+      console.log("Reader disconnected!");
       return;
     }
 
     try {
       const readerData = await reader.read();
-      const readData = new TextDecoder().decode(readerData.value);
-      console.log('Recibido: ' + readData);
-      rx_queue += readData;
+      const readBytes = Array.from(readerData.value) as number[];
+      console.log("Recibido: " + to_ascii(readBytes));
+      rx_queue = [...rx_queue, ...readBytes];
       flush_rx_queue();
     } catch (err) {
       const errorMessage = `error reading data: ${err}`;
@@ -418,7 +545,7 @@
     const opacity = tweened(0);
 
     loader.load(
-      '/scene.gltf',
+      "/scene.gltf",
       function (gltf) {
         model = gltf.scene.children[0];
         model.traverse((child) => {
@@ -434,7 +561,7 @@
       undefined,
       function (error) {
         console.log(error);
-      }
+      },
     );
 
     opacity.set(1, { delay: 1200, duration: 500 });
@@ -453,14 +580,14 @@
     ready = true;
   });
 
-  onDestroy(async () => {
+  onDestroy(() => {
     clearInterval(pollInterval);
-    console.log('Destroyed');
+    console.log("Destroyed");
     if (animationFrame) {
       cancelAnimationFrame(animationFrame);
     }
     if (port) {
-      await toggleConection();
+      toggleConection();
     }
   });
 </script>
@@ -498,40 +625,42 @@
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
         in:fly={{ x: 30, duration: 500, delay: 600 }}
       >
-        {port ? 'Desconectar' : 'Conectar'}
+        {port ? "Desconectar" : "Conectar"}
       </button>
 
-      <button
-        disabled={!port || true}
-        class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
+      <div
         in:fly={{ x: 30, duration: 500, delay: 700 }}
+        class="flex flex-row justify-between gap-1"
       >
-        Escanear todo
-      </button>
+        <button
+          disabled={!port || true}
+          class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 w-full leading-none"
+        >
+          Escanear todo
+        </button>
 
-      <button
-        disabled={!port}
-        on:click={() => writeData(Cmd.ScanRow)}
-        class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-        in:fly={{ x: 30, duration: 500, delay: 800 }}
-      >
-        Escanear horizontalmente
-      </button>
+        <button
+          disabled={!port}
+          on:click={() => writeData(Cmd.ScanRow)}
+          class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 w-full leading-none"
+        >
+          Escanear fila
+        </button>
 
-      <button
-        disabled={!port}
-        on:click={() => writeData(Cmd.ScanCol)}
-        class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-        in:fly={{ x: 30, duration: 500, delay: 900 }}
-      >
-        Escanear verticalmente
-      </button>
+        <button
+          disabled={!port}
+          on:click={() => writeData(Cmd.ScanCol)}
+          class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 w-full leading-none"
+        >
+          Escanear columna
+        </button>
+      </div>
 
       <button
         disabled={!port}
         on:click={() => writeData(Cmd.SingleMeasure)}
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-        in:fly={{ x: 30, duration: 500, delay: 1000 }}
+        in:fly={{ x: 30, duration: 500, delay: 800 }}
       >
         Medir en posición actual
       </button>
@@ -540,24 +669,107 @@
         disabled={!port}
         on:click={toggleLaser}
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-        in:fly={{ x: 30, duration: 500, delay: 1100 }}
+        in:fly={{ x: 30, duration: 500, delay: 900 }}
       >
-        {laser_fr ? (laser ? 'Apagar' : 'Prender') : 'Consultar'} láser
+        {laser_fr ? (laser ? "Apagar" : "Prender") : "Consultar"} láser
       </button>
 
       <button
         disabled={!port}
         on:click={() => writeData(Cmd.Abort)}
         class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
-        in:fly={{ x: 30, duration: 500, delay: 1200 }}
+        in:fly={{ x: 30, duration: 500, delay: 1000 }}
       >
-        Abortar
+        Cancelar
       </button>
+
+      <button
+        disabled={!port}
+        on:click={() => writeData(Cmd.GetInfo)}
+        class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12"
+        in:fly={{ x: 30, duration: 500, delay: 1100 }}
+      >
+        Pedir información
+      </button>
+
+      <div
+        in:fly={{ x: 30, duration: 500, delay: 1200 }}
+        class="flex flex-row justify-between gap-1"
+      >
+        <input
+          bind:value={info_buffer}
+          disabled={!port}
+          class="focus:outline-none text-gray-800 font-mono w-full p-2 border-rose-900 rounded-md border-4 bg-gray-200 focus:bg-gray-50 transition-colors"
+          type="text"
+          on:keydown={(event) => {
+            if (event.key === "Enter") {
+              // Prevent the default behavior of the Enter key (form submission)
+              event.preventDefault();
+
+              // Trigger the "ENVIAR" button click
+              if (port && info_buffer.length > 0) {
+                writeData(Cmd.WriteInfo + info_buffer, true);
+                info_buffer = "";
+              }
+            }
+          }}
+        />
+        <button
+          disabled={!port || info_buffer.length === 0}
+          on:click={() => {
+            writeData(Cmd.WriteInfo + info_buffer, true);
+            info_buffer = "";
+          }}
+          class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 leading-none px-2"
+        >
+          Escribir información
+        </button>
+      </div>
+
+      <div
+        in:fly={{ x: 30, duration: 500, delay: 1300 }}
+        class="flex flex-row justify-between gap-1"
+      >
+        <input
+          bind:value={tx_buffer}
+          disabled={!port}
+          class="focus:outline-none text-gray-800 font-mono w-full p-2 border-rose-900 rounded-md border-4 bg-gray-200 focus:bg-gray-50 transition-colors"
+          type="text"
+          on:keydown={(event) => {
+            if (event.key === "Enter") {
+              // Prevent the default behavior of the Enter key (form submission)
+              event.preventDefault();
+
+              // Trigger the "ENVIAR" button click
+              if (port && tx_buffer.length > 0) {
+                writeData(tx_buffer);
+                tx_buffer = "";
+              }
+            }
+          }}
+        />
+        <button
+          disabled={!port || tx_buffer.length === 0}
+          on:click={() => {
+            writeData(tx_buffer);
+            tx_buffer = "";
+          }}
+          class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 leading-none px-2"
+        >
+          Envíar
+        </button>
+      </div>
     {/key}
   </div>
 
   <div class="col-start-2 row-start-2 row-span-2 h-full w-full grid place-items-center py-20 px-5">
-    <canvas class="h-full w-full" bind:this={screen} on:click={sendMoveTo} />
+    <canvas
+      class="h-full w-full"
+      bind:this={screen}
+      on:mousedown={handleMouseDown}
+      on:mouseup={handleMouseUp}
+      on:mousemove={handleMouseMove}
+    />
   </div>
 
   <div
@@ -566,26 +778,26 @@
     {#key ready}
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 800 }}>
         <span class="underline">Ángulo A:</span>
-        {angle_fr ? x : ''}
+        {angle_fr ? x : ""}
       </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 850 }}>
         <span class="underline">Ángulo B:</span>
-        {angle_fr ? y : ''}
+        {angle_fr ? y : ""}
       </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 900 }}>
         <span class="underline">Profundidad:</span>
-        {p ? p : ''}
+        {p ? p : ""}
       </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 950 }}>
         <span class="underline">Láser:</span>
-        {laser_fr ? (laser ? 'Prendido' : 'Apagado') : ''}
+        {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
       </p>
     {/key}
   </div>
 
   {#key ready}
     <div
-      class="col-start-3 col-span-3 row-start-2 h-full w-full pt-20 gap-2 flex flex-col items-middle text-center"
+      class="col-start-3 col-span-3 row-start-2 h-full w-full pt-20 gap-2 flex flex-col items-middle text-center overflow-hidden"
       in:fly={{ x: -30, duration: 500, delay: 600 }}
     >
       <h2 class="underline">TX</h2>
@@ -596,9 +808,9 @@
           in:fade={{ duration: 150 }}
           out:fade={{ duration: 50 }}
         >
-          <span class="font-mono">{ascii_to_pictures(tx.content)}</span>
+          <span class="font-mono">{to_ascii(tx.content)}</span>
           <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm"
-            >{string_to_hex_string(tx.content)}</span
+            >{to_hex_string(tx.content)}</span
           >
         </div>
       {/each}
@@ -607,7 +819,7 @@
 
   {#key ready}
     <div
-      class="col-start-6 col-span-3 row-start-2 h-full w-full pt-20 flex flex-col items-middle text-center"
+      class="col-start-6 col-span-3 row-start-2 h-full w-full pt-20 gap-2 flex flex-col items-middle text-center overflow-hidden"
       in:fly={{ x: -30, duration: 500, delay: 800 }}
     >
       <h2 class="underline">RX</h2>
@@ -618,9 +830,9 @@
           in:fade={{ duration: 150 }}
           out:fade={{ duration: 50 }}
         >
-          <span class="font-mono">{ascii_to_pictures(rx.content)}</span>
+          <span class="font-mono">{to_ascii(rx.content)}</span>
           <span class="px-1 py-0.5 bg-gray-800 text-white rounded inline-block text-sm"
-            >{string_to_hex_string(rx.content)}</span
+            >{to_hex_string(rx.content)}</span
           >
         </div>
       {/each}
@@ -666,10 +878,10 @@
 </div>
 
 <style lang="postcss">
-  @import url('https://fonts.googleapis.com/css2?family=Dosis:wght@500&family=Josefin+Sans&display=swap');
+  @import url("https://fonts.googleapis.com/css2?family=Dosis:wght@500&family=Josefin+Sans&display=swap");
 
   :global(body) {
-    font-family: 'Dosis', sans-serif;
+    font-family: "Dosis", sans-serif;
     height: 100vh;
     width: 100vw;
     background-color: rgb(50, 50, 50);
@@ -698,6 +910,11 @@
 
   button:disabled {
     background-color: indianred;
+  }
+
+  input:disabled {
+    border-color: indianred;
+    background-color: rgb(150, 150, 150);
   }
 
   /* :global(*) {
