@@ -134,8 +134,9 @@
 
     for (let i = 0; i < n.length; i++) {
       const hexAsciiCharacter = n[i].toString(16).toUpperCase();
-      const paddedHexAscii = hexAscii.length === 1 ? "0" + hexAscii : hexAscii;
-      hexAscii.push(hexAsciiCharacter);
+      const paddedHexAscii =
+        hexAsciiCharacter.length === 1 ? "0" + hexAsciiCharacter : hexAsciiCharacter;
+      hexAscii.push(paddedHexAscii);
     }
 
     return hexAscii.join(" ");
@@ -364,6 +365,11 @@
           break;
 
         case Data.Info:
+          // Find null character
+          const idx = rx_queue.indexOf(0);
+          if (idx >= 0) {
+            bytes_to_flush = idx + 1;
+          }
           break;
 
         case Data.InfoWriteDone:
