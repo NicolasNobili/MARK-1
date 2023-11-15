@@ -810,7 +810,7 @@
         {angle_fr ? y : ""}
       </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 900 }}>
-        <span class="underline">Profundidad:</span>
+        <span class="underline">Última medición:</span>
         {p ? p : ""}
       </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 950 }}>
