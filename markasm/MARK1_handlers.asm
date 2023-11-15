@@ -32,7 +32,7 @@ handler_OVF0:
     breq objetivo_apagar_laser
 
     ; Otro objetivo
-    cpi estado, IDLE
+    ldi estado, IDLE
     rjmp handler_OVF0_end
 
 objetivo_scanning:

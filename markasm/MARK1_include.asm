@@ -66,6 +66,9 @@
 .equ INT0_PIN  = 2
 .equ LASER_PIN = 3
 
+;PORTC: 
+.equ RESET_PIN = 6
+
 
 ; ------------------------------------------------------
 ;                 ESTADOS Y OBJETIVOS

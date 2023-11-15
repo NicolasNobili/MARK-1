@@ -53,8 +53,6 @@ main:
     ldi estado, IDLE
     ldi objetivo, WAITING_COMMAND
 
-    sbi PORTB, ACTIVE_LED
-
 	rcall config_ports
 	rcall config_timer0
 	rcall config_timer1
@@ -62,6 +60,8 @@ main:
 	rcall config_USART
 	rcall config_int0
     rcall config_pci0
+
+	sbi PORTB, ACTIVE_LED
 
 	ldi data_type,CURRENT_POSITION
 	rcall send_data
@@ -106,10 +106,10 @@ main_sleep:
     cbi PORTB, ACTIVE_LED
 
     ; Modo Power-Down. Mantiene prendida la USART para despertarse
-	ldi temp, (0 << SM2) | (1 << SM1) | (0 << SM0) | (1 << SE)
-    out MCUCR, temp 
+	ldi temp, (0 << SM2) | (0 << SM1) | (0 << SM0) | (1 << SE)
+    out SMCR, temp 
 	sleep
-	out MCUCR, zero
+	out SMCR, zero
 
     sbi PORTB, ACTIVE_LED
 	rjmp main_loop
