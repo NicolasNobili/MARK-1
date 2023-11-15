@@ -259,6 +259,7 @@ continuar_scan_stepb:
 	
 	mov temp, last_stepa
 
+	;Permutamos first_stepa con last_stepa para cambiar la direccion del movimiento horizontal
 	mov last_stepa, first_stepa
 	mov first_stepa, temp
 

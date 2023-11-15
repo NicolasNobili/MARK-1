@@ -126,6 +126,11 @@ main_iniciar_medicion:
 
     rjmp main_loop
 
+
+; ------------------------------------------------------
+;                  PROCESAR BYTE
+; ------------------------------------------------------
+
 main_procesar_byte:
     ; Vemos para qu� quer�amos este byte
     cpi objetivo, WAITING_BYTES_MOVE_TO
