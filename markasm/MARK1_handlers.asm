@@ -65,7 +65,7 @@ objetivo_apagar_laser:
 	cbi PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     rcall send_data
-	ldi data_type, DONE
+	ldi data_type, SCAN_DONE
 	rcall send_data
 
 	rcall stop_timer0

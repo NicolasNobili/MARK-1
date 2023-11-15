@@ -1,3 +1,117 @@
+comando_byte_move_to:
+    ; Vemos a qu? corresponde este byte
+    mov temp, bytes_restantes
+
+    cpi temp, 2
+    breq comando_byte_stepa
+
+    cpi temp, 1
+    breq comando_byte_stepb
+
+    ; No deber?amos llegar ac?
+    rjmp main_loop
+
+comando_byte_stepa:
+    ; Todav?a falta stepb...
+    mov stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+    rjmp main_loop
+
+comando_byte_stepb:
+    ; Ya tenemos todos los datos! Podemos proceder
+    mov stepb, byte_recibido
+
+    ; Mover
+    rcall actualizar_OCR1A
+    rcall actualizar_OCR1B
+
+    ; Notificar el cambio
+    ldi data_type, CURRENT_POSITION
+    rcall send_data
+
+    ; Hacer un delay por overflows para
+    ; dar tiempo al movimiento
+    ldi left_ovfs, DELAY_MOVIMIENTO
+    ldi estado, DELAY
+    rcall start_timer0
+
+    ; Luego del delay de movimiento no queremos hacer nada
+    ldi objetivo, WAITING_COMMAND
+
+    rjmp main_loop
+
+comando_byte_scan_region:
+    mov temp, bytes_restantes
+
+    cpi temp, 4
+    breq comando_byte_first_stepa
+
+    cpi temp, 3
+    breq comando_byte_first_stepb
+
+	cpi temp, 2
+	breq comando_byte_last_stepa
+
+	cpi temp, 1
+	breq comando_byte_last_stepb
+
+comando_byte_first_stepa:
+	mov first_stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp main_loop
+
+comando_byte_first_stepb:
+	mov first_stepb, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp main_loop
+
+comando_byte_last_stepa:
+	mov last_stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp main_loop
+
+comando_byte_last_stepb:
+	mov last_stepb, byte_recibido
+	rcall start_scan
+	rjmp main_loop
+
+comando_byte_write_info:
+    ; Guardar al búffer
+    st x+, byte_recibido
+
+    ; Fijarse si es el null para terminar
+    cpi byte_recibido, 0
+    breq comando_byte_write_info_end
+
+    rjmp main_loop
+    
+comando_byte_write_info_end:
+    ; Iniciar escritura de RAM a EEPROM
+    ; Bloquea el programa
+    rcall copiar_buffer_a_eeprom
+    ldi estado, IDLE
+    ldi objetivo, WAITING_COMMAND
+    ldi data_type, WRITE_INFO_DONE
+    rcall send_data
+
+    rjmp main_loop
+
+
+
+
+
+
+
+
+
 
 /*; Ver si estamos esperando bytes de un comando largo
     cpi estado, WAIT_BYTE

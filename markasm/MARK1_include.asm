@@ -48,6 +48,15 @@
 ; Objetivo: 10 us
 .equ LOOPS_TRIGGER = 55
 
+.equ MAX_STRING = 0xFF
+
+
+; ------------------------------------------------------
+;                DIRECCIONES EEPROM
+; ------------------------------------------------------
+
+.equ INFO_ADDR = 0x0000
+
 
 ; ------------------------------------------------------
 ;                   PINES Y PUERTOS
@@ -75,13 +84,13 @@
 ; ------------------------------------------------------
 
 ; ESTADOS:
-.equ IDLE      = 0x00
-.equ MEDIR     = 0x01  ; A punto de medir (todavía no)
-.equ MIDIENDO  = 0x02
-.equ DELAY     = 0x03
+.equ IDLE             = 0x00
+.equ MEDIR            = 0x01  ; A punto de medir (todavía no)
+.equ MIDIENDO         = 0x02
+.equ DELAY            = 0x03
 .equ PROCESAR_COMANDO = 0x04
-.equ WAIT_BYTE = 0x05
-.equ PROCESAR_BYTE = 0x06
+.equ WAIT_BYTE        = 0x05
+.equ PROCESAR_BYTE    = 0x06
 
 ; OBJETIVOS:
 .equ WAITING_COMMAND           = 0x00
@@ -91,6 +100,7 @@
 .equ SINGLE_MEASURE            = 0x04
 .equ WAITING_BYTES_MOVE_TO     = 0x05
 .equ WAITING_BYTES_SCAN_REGION = 0x06
+.equ WAITING_BYTES_WRITE_INFO  = 0x07
 
 
 ; ------------------------------------------------------
@@ -110,9 +120,11 @@
 .equ TURN_ON_LASER  = 'c'
 .equ TURN_OFF_LASER = 'd'
 .equ MOVE_TO        = 'x'
+.equ WRITE_INFO     = 'h'
+.equ ASK_INFO       = 'i'
 
 ; DATA TYPES:
-.equ DONE             = 'f'
+.equ SCAN_DONE        = 'f'
 .equ MEASUREMENT      = 'm'
 .equ CURRENT_POSITION = 'p'
 .equ LASER_ON         = 'j'
@@ -121,6 +133,8 @@
 .equ DEBUG            = 'o'
 .equ BUSY             = 'n'
 .equ WHAT             = 'w'
+.equ WRITE_INFO_DONE  = 'h'
+.equ INFO             = 'i'
 
 
 ; ------------------------------------------------------
@@ -129,6 +143,7 @@
 
 .def zero            = r0
 
+.def index           = r3
 .def first_stepa     = r4
 .def first_stepb     = r5
 .def last_stepa      = r6
@@ -140,7 +155,7 @@
 .def min_disth       = r12
 .def min_stepa       = r13
 .def min_stepb       = r14
-.def tempbyte        = r15
+.def temp_byte        = r15
 .def temp            = r16
 .def templ           = r17
 .def temph           = r18

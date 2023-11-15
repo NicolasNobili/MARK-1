@@ -9,11 +9,23 @@
 
 
 ; ------------------------------------------------------
+;                    MEMORIA EEPROM
+; ------------------------------------------------------
+.eseg
+.org INFO_ADDR
+
+default_info:
+    .db "Connected to MARK1: Multi Angle Radar Kinematics Mk.1", 0
+
+
+; ------------------------------------------------------
 ;                   MEMORIA DE DATOS
 ; ------------------------------------------------------
 
 .dseg
 .org SRAM_START
+
+buffer: .byte MAX_STRING
 
 
 ; ------------------------------------------------------
@@ -105,7 +117,7 @@ main_sleep:
 	brne main_loop
     cbi PORTB, ACTIVE_LED
 
-    ; Modo Power-Down. Mantiene prendida la USART para despertarse
+    ; Modo Idle. Mantiene prendida la USART para despertarse
 	ldi temp, (0 << SM2) | (0 << SM1) | (0 << SM0) | (1 << SE)
     out SMCR, temp 
 	sleep
@@ -113,6 +125,7 @@ main_sleep:
 
     sbi PORTB, ACTIVE_LED
 	rjmp main_loop
+
 
 ; ------------------------------------------------------
 ;                  INICIAR MEDICION
@@ -139,93 +152,23 @@ main_procesar_byte:
     cpi objetivo, WAITING_BYTES_SCAN_REGION
     breq comando_byte_scan_region
 
+    cpi objetivo, WAITING_BYTES_WRITE_INFO
+    breq comando_byte_write_info
+
     ; No deber�amos llegar ac�
     rjmp main_loop
 
 comando_byte_move_to:
-    ; Vemos a qu� corresponde este byte
-    mov temp, bytes_restantes
-
-    cpi temp, 2
-    breq comando_byte_stepa
-
-    cpi temp, 1
-    breq comando_byte_stepb
-
-    ; No deber�amos llegar ac�
-    rjmp main_loop
-
-comando_byte_stepa:
-    ; Todav�a falta stepb...
-    mov stepa, byte_recibido
-    dec bytes_restantes
-    ldi estado, WAIT_BYTE
-
-    rjmp main_loop
-
-comando_byte_stepb:
-    ; Ya tenemos todos los datos! Podemos proceder
-    mov stepb, byte_recibido
-
-    ; Mover
-    rcall actualizar_OCR1A
-    rcall actualizar_OCR1B
-
-    ; Notificar el cambio
-    ldi data_type, CURRENT_POSITION
-    rcall send_data
-
-    ; Hacer un delay por overflows para
-    ; dar tiempo al movimiento
-    ldi left_ovfs, DELAY_MOVIMIENTO
-    ldi estado, DELAY
-    rcall start_timer0
-
-    ; Luego del delay de movimiento no queremos hacer nada
-    ldi objetivo, WAITING_COMMAND
-
+    rcall rutina_comando_byte_move_to
     rjmp main_loop
 
 comando_byte_scan_region:
-    mov temp, bytes_restantes
+    rcall rutina_comando_byte_scan_region
+    rjmp main_loop
 
-    cpi temp, 4
-    breq comando_byte_first_stepa
-
-    cpi temp, 3
-    breq comando_byte_first_stepb
-
-	cpi temp, 2
-	breq comando_byte_last_stepa
-
-	cpi temp, 1
-	breq comando_byte_last_stepb
-
-comando_byte_first_stepa:
-	mov first_stepa, byte_recibido
-    dec bytes_restantes
-    ldi estado, WAIT_BYTE
-
-	rjmp main_loop
-
-comando_byte_first_stepb:
-	mov first_stepb, byte_recibido
-    dec bytes_restantes
-    ldi estado, WAIT_BYTE
-
-	rjmp main_loop
-
-comando_byte_last_stepa:
-	mov last_stepa, byte_recibido
-    dec bytes_restantes
-    ldi estado, WAIT_BYTE
-
-	rjmp main_loop
-
-comando_byte_last_stepb:
-	mov last_stepb, byte_recibido
-	rcall start_scan
-	rjmp main_loop
+comando_byte_write_info:
+    rcall rutina_comando_byte_write_info
+    rjmp main_loop
 
 
 ; ------------------------------------------------------
@@ -278,6 +221,9 @@ main_procesar_comando:
 
     cpi byte_recibido, TURN_OFF_LASER
     breq comando_turn_off_laser
+
+    cpi byte_recibido, WRITE_INFO
+    breq comando_write_info
 
     ; Comando desconocido
     ldi data_type, WHAT
@@ -340,6 +286,10 @@ comando_turn_on_laser:
 
 comando_turn_off_laser:
 	rcall rutina_comando_turn_off_laser
+    rjmp main_loop
+
+comando_write_info:
+    rcall rutina_comando_write_info
     rjmp main_loop
 
 end_main:

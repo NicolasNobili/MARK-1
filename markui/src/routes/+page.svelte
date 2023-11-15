@@ -318,8 +318,8 @@
             bytes_to_flush = 5;
             x = rx_queue[1];
             y = rx_queue[2];
-            p = rx_queue[4]; // + rx_queue[3] / 255; (doesn't matter)
-            depthMap[x + N * y] = 255 - p;
+            p = rx_queue[4] * 255 + rx_queue[3];
+            depthMap[x + N * y] = 255 - Math.round(p / 255);
             recencyMap[x + N * y] = 255;
             angle_fr = true;
           }
@@ -330,7 +330,6 @@
             bytes_to_flush = 3;
             x = rx_queue[1];
             y = rx_queue[2];
-            p = null;
             angle_fr = true;
           }
           break;
@@ -416,7 +415,7 @@
           await writeData(Cmd.AskPosition);
           await writeData(Cmd.AskLaser);
           await writeData(Cmd.GetInfo);
-          busy = false; // TODO: true
+          busy = true;
           reader = port.readable.getReader();
           pollInterval = setInterval(readData, pollMilliseconds);
         }, connectionDelay);
@@ -639,7 +638,7 @@
     {/key}
   </div>
 
-  <div class="col-start-1 row-start-2 row-span-2 flex flex-col h-full w-full justify-evenly p-20">
+  <div class="col-start-1 row-start-2 row-span-3 flex flex-col h-full w-full justify-evenly p-20">
     {#key ready}
       <button
         on:click={toggleConection}
@@ -787,20 +786,50 @@
     {/key}
   </div>
 
-  <div class="col-start-2 row-start-2 row-span-2 h-full w-full grid place-items-center py-20 px-5">
-    <canvas
-      class="h-full w-full"
-      bind:this={screen}
-      on:mousedown={handleMouseDown}
-      on:mouseup={handleMouseUp}
-      on:mousemove={handleMouseMove}
-    />
+  <div class="col-start-2 row-start-2 row-span-2 h-full w-full grid place-items-center pt-12 px-5">
+    {#key ready}
+      <canvas
+        in:fly={{ y: -30, duration: 800, delay: 500 }}
+        class="h-full w-full"
+        bind:this={screen}
+        on:mousedown={handleMouseDown}
+        on:mouseup={handleMouseUp}
+        on:mousemove={handleMouseMove}
+      />
+    {/key}
+  </div>
+
+  <div class="col-start-2 row-start-4 h-full w-full px-5">
+    {#key ready}
+      <div
+        class="flex flex-row align-middle justify-between"
+        in:fly={{ y: -30, duration: 500, delay: 1200 }}
+      >
+        <p>
+          Clickeá o arrastrá para mandar
+          <br />un comando de posición o escaneo
+        </p>
+        <button
+          on:click={() => {
+            depthMap = new Uint8Array(M * N);
+            recencyMap = new Uint8Array(M * N);
+          }}
+          class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 leading-none px-2"
+        >
+          Limpiar
+        </button>
+      </div>
+    {/key}
   </div>
 
   <div
-    class="col-start-3 col-span-2 row-start-3 h-full w-full pb-20 pt-5 flex flex-col justify-evenly"
+    class="col-start-3 col-span-2 row-start-3 row-span-2 h-full w-full pb-20 pt-5 flex flex-col justify-evenly"
   >
     {#key ready}
+      <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 950 }}>
+        <span class="underline">Láser:</span>
+        {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
+      </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 800 }}>
         <span class="underline">Ángulo A:</span>
         {angle_fr ? x : ""}
@@ -812,10 +841,6 @@
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 900 }}>
         <span class="underline">Última medición:</span>
         {p ? p : ""}
-      </p>
-      <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 950 }}>
-        <span class="underline">Láser:</span>
-        {laser_fr ? (laser ? "Prendido" : "Apagado") : ""}
       </p>
     {/key}
   </div>
@@ -897,7 +922,7 @@
     {/key}
   </div-->
 
-  <div class="col-start-5 col-span-4 row-start-3 h-full w-full pb-20 px-5">
+  <div class="col-start-5 col-span-4 row-start-3 row-span-2 h-full w-full pb-20 px-5">
     <div class="h-full w-full" bind:this={scene3d} />
   </div>
 </div>
@@ -924,7 +949,7 @@
 
   .custom-grid {
     display: grid;
-    grid-template-rows: 1fr 3fr 3fr;
+    grid-template-rows: 4fr 12fr 8fr 4fr;
     grid-template-columns: 6fr 6fr 1fr 1fr 1fr 1fr 1fr 1fr;
     gap: 5px;
     height: 100vh;

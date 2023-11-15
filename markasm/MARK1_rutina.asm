@@ -81,7 +81,7 @@ loop_trig:
 ; Se debe cargar previamente el registro data_type
 send_data:
     ; Mandar primero el byte de tipo de dato
-    mov tempbyte, data_type
+    mov temp_byte, data_type
     rcall send_byte
 
     ; Ver si hay que mandar bytes extra, según el tipo de dato
@@ -100,30 +100,30 @@ send_data:
 
 send_measurement:
     ; Formato: A, B 
-    mov tempbyte, stepa
+    mov temp_byte, stepa
     rcall send_byte
-    mov tempbyte, stepb
+    mov temp_byte, stepb
     rcall send_byte
 
 	;Formato: lectural , lecturah (little-endian)
-    mov tempbyte, lectural
+    mov temp_byte, lectural
     rcall send_byte
-	mov tempbyte, lecturah
+	mov temp_byte, lecturah
     rcall send_byte
 
     rjmp send_data_end
 
 send_position:
     ; Formato: A, B
-    mov tempbyte, stepa
+    mov temp_byte, stepa
     rcall send_byte
-    mov tempbyte, stepb
+    mov temp_byte, stepb
     rcall send_byte
 
     rjmp send_data_end
 
 send_debug:
-	mov tempbyte, lecturah
+	mov temp_byte, lecturah
     rcall send_byte
 
 	rjmp send_data_end
@@ -132,13 +132,146 @@ send_data_end:
     ret
 
 
-; Se debe cargar previamente el registro tempbyte
+; Se debe cargar previamente el registro temp_byte
 send_byte:
     lds temp, UCSR0A
     sbrs temp, UDRE0
     rjmp send_byte
 
-    sts UDR0, tempbyte
+    sts UDR0, temp_byte
+    ret
+
+
+; ------------------------------------------------------
+;                RUTINAS DE BYTES
+; ------------------------------------------------------
+
+rutina_comando_byte_move_to:
+    ; Vemos a qu? corresponde este byte
+    mov temp, bytes_restantes
+
+    cpi temp, 2
+    breq comando_byte_stepa
+
+    cpi temp, 1
+    breq comando_byte_stepb
+
+    ; No deber?amos llegar ac?
+    rjmp rutina_comando_byte_move_to_end
+
+
+comando_byte_stepa:
+    ; Todav?a falta stepb...
+    mov stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+    rjmp rutina_comando_byte_move_to_end
+
+
+comando_byte_stepb:
+    ; Ya tenemos todos los datos! Podemos proceder
+    mov stepb, byte_recibido
+
+    ; Mover
+    rcall actualizar_OCR1A
+    rcall actualizar_OCR1B
+
+    ; Notificar el cambio
+    ldi data_type, CURRENT_POSITION
+    rcall send_data
+
+    ; Hacer un delay por overflows para
+    ; dar tiempo al movimiento
+    ldi left_ovfs, DELAY_MOVIMIENTO
+    ldi estado, DELAY
+    rcall start_timer0
+
+    ; Luego del delay de movimiento no queremos hacer nada
+    ldi objetivo, WAITING_COMMAND
+
+rutina_comando_byte_move_to_end:
+    ret
+
+
+
+
+
+
+
+
+rutina_comando_byte_scan_region:
+    mov temp, bytes_restantes
+
+    cpi temp, 4
+    breq comando_byte_first_stepa
+
+    cpi temp, 3
+    breq comando_byte_first_stepb
+
+	cpi temp, 2
+	breq comando_byte_last_stepa
+
+	cpi temp, 1
+	breq comando_byte_last_stepb
+
+comando_byte_first_stepa:
+	mov first_stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp rutina_comando_byte_scan_region_end
+
+comando_byte_first_stepb:
+	mov first_stepb, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp rutina_comando_byte_scan_region_end
+
+comando_byte_last_stepa:
+	mov last_stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp rutina_comando_byte_scan_region_end
+
+comando_byte_last_stepb:
+	mov last_stepb, byte_recibido
+	rcall start_scan
+
+	rjmp rutina_comando_byte_scan_region_end
+
+rutina_comando_byte_scan_region_end:
+    ret
+
+
+
+
+
+
+
+
+rutina_comando_byte_write_info:
+    ; Guardar al búffer
+    st x+, byte_recibido
+
+    ; Fijarse si es el null para terminar
+    cpi byte_recibido, 0
+    breq comando_byte_write_info_end
+
+    rjmp rutina_comando_byte_write_info_end
+    
+comando_byte_write_info_end:
+    ; Iniciar escritura de RAM a EEPROM
+    ; Bloquea el programa
+    rcall copiar_buffer_a_eeprom
+    ldi estado, IDLE
+    ldi objetivo, WAITING_COMMAND
+    ldi data_type, WRITE_INFO_DONE
+    rcall send_data
+
+rutina_comando_byte_write_info_end:
     ret
 
 
@@ -272,6 +405,13 @@ rutina_comando_turn_off_laser:
     ret
 
 
+rutina_comando_write_info:
+    ldx buffer
+    ldi estado, WAIT_BYTE
+    ldi objetivo, WAITING_BYTES_WRITE_INFO
+
+    ret
+
 ; ------------------------------------------------------
 ;                      START SCAN
 ; ------------------------------------------------------
@@ -295,7 +435,7 @@ start_scan:
     ldi estado, DELAY
     rcall start_timer0
 
-	; Setear la distancia m?nima en 0xFFFF
+	; Setear la distancia mínima en 0xFFFF
 	clr min_disth
 	dec min_disth
 
@@ -306,3 +446,55 @@ start_scan:
     ldi objetivo, SCANNING
 
 	ret
+
+
+; ------------------------------------------------------
+;                         EEPROM
+; ------------------------------------------------------
+
+copiar_buffer_a_eeprom:
+    ldx buffer
+    ldy INFO_ADDR
+    ldi temp, MAX_STRING
+    mov index, temp
+
+copiar_buffer_a_eeprom_loop:
+    ld temp_byte, x+
+    rcall eeprom_write
+    ld temp, y+  ; Incrementar Y
+
+
+    cp temp_byte, zero
+    brne copiar_buffer_a_eeprom_loop
+
+    dec index
+    brne copiar_buffer_a_eeprom_loop
+
+    ; Por las dudas, finalizar con un NULL
+    ; en la última posición escrita
+    ld temp, -y
+    clr temp_byte
+    rcall eeprom_write
+
+    ret
+
+
+; Usa temp_byte y el puntero Y
+; para la dirección
+eeprom_write:
+    ; Verificar si podemos escribir
+    sbic EECR, EEPE
+    rjmp eeprom_write
+    
+    ; Address
+    out EEARH, xh
+    out EEARL, xl
+
+    ; Data
+    out EEDR, temp_byte
+
+    ; Enable
+    sbi EECR, EEMPE
+    sbi EECR, EEPE
+
+    ret
