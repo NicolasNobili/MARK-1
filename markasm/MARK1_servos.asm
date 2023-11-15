@@ -65,6 +65,9 @@ stepb_down_end:
 ; Las funciones step up, down lo hacen automáticamente
 ; Escribe en OCR1A = STEPA * STEP_OCR1A + MIN_OCR1A
 actualizar_OCR1A:
+	push r0
+	push r1
+
     in temp, sreg
     push temp
     cli
@@ -85,12 +88,19 @@ actualizar_OCR1A:
 
     pop temp
     out sreg, temp
+
+	pop r1
+	pop r0
+	 
     ret
 
 
 ; Las funciones step up, down lo hacen automáticamente
 ; Escribe en OCR1B = STEPB * STEP_OCR1B + MIN_OCR1B
 actualizar_OCR1B:
+	push r0
+	push r1
+
     in temp, sreg
     push temp
     cli
@@ -109,4 +119,7 @@ actualizar_OCR1B:
 
     pop temp
     out sreg, temp
+
+	pop r1
+	pop r0
     ret

@@ -36,7 +36,7 @@
 
 
 ; ------------------------------------------------------
-;                  INICIALIZACI�N
+;                  INICIALIZACION
 ; ------------------------------------------------------
 
 .org INT_VECTORS_SIZE
@@ -58,6 +58,7 @@ main:
 	rcall config_ports
 	rcall config_timer0
 	rcall config_timer1
+	rcall config_timer2
 	rcall config_USART
 	rcall config_int0
     rcall config_pci0
@@ -181,8 +182,45 @@ comando_byte_stepb:
     rjmp main_loop
 
 comando_byte_scan_region:
-    ; HACER
-    rjmp main_loop
+    mov temp, bytes_restantes
+
+    cpi temp, 4
+    breq comando_byte_first_stepa
+
+    cpi temp, 3
+    breq comando_byte_first_stepb
+
+	cpi temp, 2
+	breq comando_byte_last_stepa
+
+	cpi temp, 1
+	breq comando_byte_last_stepb
+
+comando_byte_first_stepa:
+	mov first_stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp main_loop
+
+comando_byte_first_stepb:
+	mov first_stepb, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp main_loop
+
+comando_byte_last_stepa:
+	mov last_stepa, byte_recibido
+    dec bytes_restantes
+    ldi estado, WAIT_BYTE
+
+	rjmp main_loop
+
+comando_byte_last_stepb:
+	mov last_stepb, byte_recibido
+	rcall start_scan
+	rjmp main_loop
 
 
 ; ------------------------------------------------------
@@ -215,6 +253,15 @@ main_procesar_comando:
     cpi byte_recibido, SCAN_ROW
     breq comando_scan_row
 
+	cpi byte_recibido, SCAN_COL
+    breq comando_scan_col
+
+	cpi byte_recibido, SCAN_ALL
+    breq comando_scan_all
+
+	cpi byte_recibido, SCAN_REGION
+    breq comando_scan_region
+
     cpi byte_recibido, MOVE_TO
     breq comando_move_to
 
@@ -233,104 +280,61 @@ main_procesar_comando:
 	ldi estado,IDLE
     rjmp main_loop
 
-comando_abort:
-    ; Nos quedamos donde estamos
-    ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
-
-    rjmp main_loop
-
-comando_ping:
-    ; Ping - pong
-    ldi data_type, PONG
-    rcall send_data
-	ldi estado,IDLE
-
-    rjmp main_loop
-
-comando_ask_position:
-    ; Devolvemos la posici�n
-    ldi data_type, CURRENT_POSITION
-    rcall send_data
-	ldi estado,IDLE
-
-    rjmp main_loop
-
-comando_ask_laser:
-    ; Devolvemos el estado actual del l�ser
-    sbis PORTD, LASER_PIN
-    ldi data_type, LASER_OFF
-    sbic PORTD, LASER_PIN
-    ldi data_type, LASER_ON
-    rcall send_data
-	ldi estado,IDLE
-
-    rjmp main_loop
 
 send_busy:
+
     ldi data_type, BUSY
     rcall send_data
 	ldi estado,IDLE
 
     rjmp main_loop
 
+comando_abort:
+    rcall rutina_comando_abort
+    rjmp main_loop
+
+comando_ping:
+	rcall rutina_comando_ping
+    rjmp main_loop
+
+comando_ask_position:
+	rcall rutina_comando_ask_position
+    rjmp main_loop
+
+comando_ask_laser:
+	rcall rutina_comando_ask_laser
+    rjmp main_loop
+
 comando_scan_row:
-    ; Mover el servo A al m�nimo
-    ldi stepa, 0
-    rcall actualizar_OCR1A
+	rcall rutina_comando_scan_row
+	rjmp main_loop
 
-    ; Notificar del cambio de posici�n
-    ldi data_type, CURRENT_POSITION
-    rcall send_data
+comando_scan_col:
+	rcall rutina_comando_scan_col
+	rjmp main_loop
 
-    ; Hacer un delay por overflows para
-    ; dar tiempo al movimiento
-    ldi left_ovfs, DELAY_MOVIMIENTO
-    ldi estado, DELAY
-    rcall start_timer0
+comando_scan_all:
+	rcall rutina_comando_scan_all
+	rjmp main_loop
 
-    ; Setear la distancia m�nima en 0xFF
-	clr min_dist
-	dec min_dist
-
-    ; Actualizar objetivo
-    ldi objetivo, SCANNING_ROW
-
+comando_scan_region:
+	rcall rutina_comando_scan_region
 	rjmp main_loop
 
 comando_move_to:
-    ; Necesitamos 2 bytes m�s (stepa, stepb)
-    clr bytes_restantes
-    inc bytes_restantes
-    inc bytes_restantes
-    ldi estado, WAIT_BYTE
-    ldi OBJETIVO, WAITING_BYTES_MOVE_TO
-
+	rcall rutina_comando_move_to
     rjmp main_loop
 
 comando_medir_dist:
-    ; Queremos medir solo una vez
-	ldi estado, MEDIR
-	ldi objetivo, SINGLE_MEASURE
-
+	rcall rutina_comando_medir_dist
     rjmp main_loop
 
 comando_turn_on_laser:
-	; Encender l�ser y notificar cambio de estado
-	sbi PORTD, LASER_PIN
-    ldi data_type, LASER_ON
-    rcall send_data
-	ldi estado,IDLE
-
+	rcall rutina_comando_turn_on_laser
     rjmp main_loop
 
 comando_turn_off_laser:
-	; Apagar l�ser y notificar cambio de estado
-	cbi PORTD, LASER_PIN
-    ldi data_type, LASER_OFF
-    rcall send_data
-	ldi estado,IDLE
-
+	rcall rutina_comando_turn_off_laser
     rjmp main_loop
 
 end_main:

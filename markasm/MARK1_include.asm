@@ -82,7 +82,7 @@
 
 ; OBJETIVOS:
 .equ WAITING_COMMAND           = 0x00
-.equ SCANNING_ROW              = 0x01
+.equ SCANNING                  = 0x01
 .equ PRENDER_LASER             = 0x02
 .equ APAGAR_LASER              = 0x03
 .equ SINGLE_MEASURE            = 0x04
@@ -124,24 +124,31 @@
 ;                        REGISTROS
 ; ------------------------------------------------------
 
-.def zero       = r3
-.def bytes_restantes = r9
-.def lectura    = r10
-.def min_stepa  = r11
-.def min_stepb  = r12
-.def min_dist   = r13
-.def count_ovfs = r14
-.def tempbyte   = r15
-.def temp       = r16
-.def templ      = r17
-.def temph      = r18
-.def stepa      = r19
-.def stepb      = r20
-.def estado     = r21
-.def objetivo   = r22
-.def left_ovfs  = r23
-.def data_type  = r24
-.def byte_recibido = r25
+.def zero            = r0
+
+.def first_stepa     = r4
+.def first_stepb     = r5
+.def last_stepa      = r6
+.def last_stepb      = r7
+.def bytes_restantes = r8
+.def lectural        = r9
+.def lecturah        = r10
+.def min_distl       = r11
+.def min_disth       = r12
+.def min_stepa       = r13
+.def min_stepb       = r14
+.def tempbyte        = r15
+.def temp            = r16
+.def templ           = r17
+.def temph           = r18
+.def stepa           = r19
+.def stepb           = r20
+.def estado          = r21
+.def objetivo        = r22
+.def left_ovfs       = r23
+.def data_type       = r24
+.def byte_recibido   = r25
+
 
 
 ; ------------------------------------------------------

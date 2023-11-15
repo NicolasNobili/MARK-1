@@ -198,3 +198,27 @@ handler_URXC_end:
     pop temp
     out sreg, temp
     reti*/
+
+/* comando_scan_row:
+    ; Mover el servo A al m?nimo
+    ldi stepa, 0
+    rcall actualizar_OCR1A
+
+    ; Notificar del cambio de posici?n
+    ldi data_type, CURRENT_POSITION
+    rcall send_data
+
+    ; Hacer un delay por overflows para
+    ; dar tiempo al movimiento
+    ldi left_ovfs, DELAY_MOVIMIENTO
+    ldi estado, DELAY
+    rcall start_timer0
+
+    ; Setear la distancia m?nima en 0xFF
+	clr min_dist
+	dec min_dist
+
+    ; Actualizar objetivo
+    ldi objetivo, SCANNING_ROW
+
+	rjmp main_loop */

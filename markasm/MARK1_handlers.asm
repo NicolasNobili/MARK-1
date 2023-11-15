@@ -22,8 +22,8 @@ handler_OVF0:
     ; timer 0 y ver qué sigue hacer
     rcall stop_timer0
 
-    cpi objetivo, SCANNING_ROW
-    breq objetivo_scanning_row
+    cpi objetivo, SCANNING
+    breq objetivo_scanning
 
 	cpi objetivo, PRENDER_LASER
     breq objetivo_prender_laser
@@ -35,7 +35,7 @@ handler_OVF0:
     cpi estado, IDLE
     rjmp handler_OVF0_end
 
-objetivo_scanning_row:
+objetivo_scanning:
     rcall stop_timer0
 
     ; Solicitamos una medición (al main loop)
@@ -88,7 +88,7 @@ handler_OVF2:
 	in temp,sreg
 	push temp
 	
-	inc count_ovfs
+	inc lecturah
 
 handler_OVF2_end:
 	pop temp
@@ -181,21 +181,26 @@ process_measure:
 	andi temp,~(1<<PCIE0)
 	sts PCICR,temp
 
-    ; Convertir la lectura a 1 byte
-	ldi data_type,DEBUG
-	rcall send_data
+	;Lectura de medicion
+	lds lectural, TCNT2
 
-	lds temp, TCNT2
-	lsr count_ovfs
-	ror temp
-	mov lectura, temp
 	
     ; Comparar con mínimo
-	cp lectura, min_dist
-	brsh send_measure
+	cp min_disth, lecturah
+	brlo send_measure
+	
+	cp lecturah, min_disth
+	brlo actualizar_minimo
 
+	cp lectural, min_distl
+	brlo actualizar_minimo
+
+	rjmp send_measure
+	
+actualizar_minimo:
     ; Reemplazar mínimo
-	mov min_dist, lectura
+	mov min_distl, lectural
+	mov min_disth, lecturah
 	mov min_stepa, stepa
 	mov min_stepb, stepb
 
@@ -209,20 +214,34 @@ send_measure:
 	cpi objetivo, SINGLE_MEASURE
 	breq terminar_single_measure
     
-    cpi objetivo, SCANNING_ROW
-    breq continuar_scanning_row
+    cpi objetivo, SCANNING
+    breq continuar_scanning
 
     ; No debería llegar acá
     rjmp handler_PCI0_end
 
-continuar_scanning_row:
+continuar_scanning:
+
+continuar_scan_stepa:
     ; Vemos si podemos seguir avanzando
-    cpi stepa, MAX_STEPA
-    breq terminar_scanning_row
+    cp stepa, last_stepa
+    breq continuar_scan_stepb
 
     ; Podemos seguir, dar tiempo
     ; para moverse a la siguiente posición
+
+	cp first_stepa,last_stepa
+	brlo continuar_scan_stepa_derecha
+
+continuar_scan_stepa_izquierda:
+	rcall stepa_down
+	rjmp continuar_scan_stepa_delay
+
+continuar_scan_stepa_derecha:
     rcall stepa_up
+
+continuar_scan_stepa_delay:
+
     ldi estado, DELAY
     ldi left_ovfs, DELAY_STEP
     rcall start_timer0
@@ -232,7 +251,31 @@ continuar_scanning_row:
 
     rjmp handler_PCI0_end
 
-terminar_scanning_row:
+continuar_scan_stepb:
+	; Vemos si podemos seguir avanzando
+	; Se llega a aca despues de haber escaneado la fila [first_stepa : last_stepa , stepb]
+    cp stepb, last_stepb
+	breq terminar_scanning
+	
+	mov temp, last_stepa
+
+	mov last_stepa, first_stepa
+	mov first_stepa, temp
+
+	; Podemos seguir, dar tiempo
+    ; para moverse a la siguiente posición
+	rcall stepb_up
+    ldi estado, DELAY
+    ldi left_ovfs, DELAY_STEP
+    rcall start_timer0
+	
+	ldi data_type, CURRENT_POSITION
+	rcall send_data
+
+	rjmp handler_PCI0_end
+
+
+terminar_scanning:
     ; No podemos seguir avanzando, vamos
     ; a apuntar al mínimo que encontramos
     mov stepa, min_stepa
@@ -262,7 +305,7 @@ terminar_single_measure:
 start_measure:
     ; Flanco ascendente, recién comienza la lectura
     ; Iniciar el timer 2 (más el bit extra por overflows)
-	clr count_ovfs
+	clr lecturah
 	rcall start_timer2
     rjmp handler_PCI0_end
 
