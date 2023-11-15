@@ -42,7 +42,7 @@
     Position = "p", // Expects 2 more numbers
     LaserOn = "j",
     LaserOff = "k",
-    Measurement = "m", // Expects 3 more numbers
+    Measurement = "m", // Expects 4 more bytes
     Pong = "b",
     Debug = "o", // Expects 1 more number
     Busy = "n",
@@ -314,11 +314,11 @@
 
       switch (data_type) {
         case Data.Measurement:
-          if (len >= 4) {
-            bytes_to_flush = 4;
+          if (len >= 5) {
+            bytes_to_flush = 5;
             x = rx_queue[1];
             y = rx_queue[2];
-            p = rx_queue[3];
+            p = rx_queue[4]; // + rx_queue[3] / 255; (doesn't matter)
             depthMap[x + N * y] = 255 - p;
             recencyMap[x + N * y] = 255;
             angle_fr = true;
