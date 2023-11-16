@@ -191,6 +191,12 @@ main_procesar_comando:
     cpi byte_recibido, ASK_LASER
     breq comando_ask_laser
 
+	cpi byte_recibido, ASK_STATE
+	breq comando_ask_state
+
+	cpi byte_recibido, ASK_OBJECTIVE
+	breq comando_ask_objective
+
     ; Para otros comandos, primero verificamos si estamos en WAITING_COMMAND
     ; Si no, devolvemos que estamos ocupados
     cpi objetivo, WAITING_COMMAND
@@ -255,6 +261,14 @@ comando_ask_position:
 comando_ask_laser:
 	rcall rutina_comando_ask_laser
     rjmp main_loop
+
+comando_ask_state:
+	rcall rutina_comando_ask_state
+	rjmp main_loop
+
+comando_ask_objective:
+	rcall rutina_comando_ask_objective
+	rjmp main_loop
 
 comando_scan_row:
 	rcall rutina_comando_scan_row

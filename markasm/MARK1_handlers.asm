@@ -307,6 +307,7 @@ start_measure:
     ; Flanco ascendente, recién comienza la lectura
     ; Iniciar el timer 2 (más el bit extra por overflows)
 	clr lecturah
+	clr lectural
 	rcall start_timer2
     rjmp handler_PCI0_end
 

@@ -415,7 +415,7 @@
           await writeData(Cmd.AskPosition);
           await writeData(Cmd.AskLaser);
           await writeData(Cmd.GetInfo);
-          busy = true;
+          busy = false;
           reader = port.readable.getReader();
           pollInterval = setInterval(readData, pollMilliseconds);
         }, connectionDelay);

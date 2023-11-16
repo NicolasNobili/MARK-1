@@ -122,6 +122,9 @@
 .equ MOVE_TO        = 'x'
 .equ WRITE_INFO     = 'h'
 .equ ASK_INFO       = 'i'
+.equ ASK_STATE      = 'y'
+.equ ASK_OBJECTIVE  = 'q'
+.equ RESET          = 'r'
 
 ; DATA TYPES:
 .equ SCAN_DONE        = 'f'
@@ -135,6 +138,8 @@
 .equ WHAT             = 'w'
 .equ WRITE_INFO_DONE  = 'h'
 .equ INFO             = 'i'
+.equ STATE            = 'y'
+.equ OBJECTIVE        = 'q'
 
 
 ; ------------------------------------------------------
@@ -143,6 +148,7 @@
 
 .def zero            = r0
 
+.def loop_trigger    = r2
 .def index           = r3
 .def first_stepa     = r4
 .def first_stepb     = r5

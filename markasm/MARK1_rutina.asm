@@ -66,8 +66,9 @@ send_trigger:
 	
 	sbi PORTB, ULTRASOUND_TRIG
 	ldi temp, LOOPS_TRIGGER
+	mov loop_trigger, temp
 loop_trig:
-	dec temp
+	dec loop_trigger
 	brne loop_trig
 	cbi PORTB, ULTRASOUND_TRIG
 
@@ -94,6 +95,12 @@ send_data:
 
 	cpi data_type, DEBUG
 	breq send_debug
+
+	cpi data_type, STATE
+	breq send_state
+
+	cpi data_type, OBJECTIVE
+	breq send_objective
 
     ; No hace falta mandar bytes extra
     rjmp send_data_end
@@ -125,6 +132,18 @@ send_position:
 send_debug:
 	mov temp_byte, lecturah
     rcall send_byte
+
+	rjmp send_data_end
+
+send_state:
+	mov temp_byte, estado
+	rcall send_byte
+
+	rjmp send_data_end
+
+send_objective:
+	mov temp_byte, objetivo
+	rcall send_byte
 
 	rjmp send_data_end
 
@@ -315,6 +334,22 @@ rutina_comando_ask_laser:
 	ldi estado,IDLE
 
     ret
+
+
+rutina_comando_ask_state:
+	ldi data_type, STATE
+	rcall send_data
+	ldi estado,IDLE
+
+	ret
+
+
+rutina_comando_ask_objective:
+	ldi data_type, OBJECTIVE
+	rcall send_data
+	ldi estado,IDLE
+
+	ret
 
 
 rutina_comando_scan_row:
