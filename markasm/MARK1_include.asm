@@ -41,9 +41,10 @@
 .equ UBRR0 = int( CLK_FREQUENCY / (16 * BAUD_RATE) - 1 )
 
 ; Medidos en overflows del timer 0 (16 ms)
-.equ DELAY_MOVIMIENTO = 20
-.equ DELAY_STEP       = 10
-.equ DELAY_LASER      = 0xFF
+.equ DELAY_MOVIMIENTO     = 20
+.equ DELAY_STEP           = 10
+.equ DELAY_SINGLE_MEASURE = 2
+.equ DELAY_DURACION_LASER = 0xAF
 
 ; Objetivo: 10 us
 .equ LOOPS_TRIGGER = 55
@@ -83,24 +84,19 @@
 ;                 ESTADOS Y OBJETIVOS
 ; ------------------------------------------------------
 
-; ESTADOS:
-.equ IDLE             = 0x00
-.equ MEDIR            = 0x01  ; A punto de medir (todavía no)
+; ESTADOS DE MEDICIÓN:
+.equ WAIT_MEDIR       = 0x00
+.equ MEDIR            = 0x01
 .equ MIDIENDO         = 0x02
-.equ DELAY            = 0x03
-.equ PROCESAR_COMANDO = 0x04
-.equ WAIT_BYTE        = 0x05
-.equ PROCESAR_BYTE    = 0x06
+.equ DELAY_SCAN       = 0x03
+.equ DELAY_MOVE_TO    = 0x04
+.equ DELAY_LASER      = 0x05
 
-; OBJETIVOS:
-.equ WAITING_COMMAND           = 0x00
-.equ SCANNING                  = 0x01
-.equ PRENDER_LASER             = 0x02
-.equ APAGAR_LASER              = 0x03
-.equ SINGLE_MEASURE            = 0x04
-.equ WAITING_BYTES_MOVE_TO     = 0x05
-.equ WAITING_BYTES_SCAN_REGION = 0x06
-.equ WAITING_BYTES_WRITE_INFO  = 0x07
+; ESTADOS DE COMUNICACIÓN:
+.equ WAIT_COMMAND     = 0x00
+.equ PROCESAR_COMANDO = 0x01
+.equ WAIT_BYTE        = 0x02
+.equ PROCESAR_BYTE    = 0x03
 
 
 ; ------------------------------------------------------
@@ -123,8 +119,6 @@
 .equ WRITE_INFO     = 'h'
 .equ ASK_INFO       = 'i'
 .equ ASK_STATE      = 'y'
-.equ ASK_OBJECTIVE  = 'q'
-.equ RESET          = 'r'
 
 ; DATA TYPES:
 .equ SCAN_DONE        = 'f'
@@ -138,40 +132,39 @@
 .equ WHAT             = 'w'
 .equ WRITE_INFO_DONE  = 'h'
 .equ INFO             = 'i'
-.equ STATE            = 'y'
-.equ OBJECTIVE        = 'q'
+.equ MEASURE_STATE    = 'y'
 
 
 ; ------------------------------------------------------
 ;                        REGISTROS
 ; ------------------------------------------------------
 
-.def zero            = r0
+.def zero              = r0
 
-.def loop_trigger    = r2
-.def index           = r3
-.def first_stepa     = r4
-.def first_stepb     = r5
-.def last_stepa      = r6
-.def last_stepb      = r7
-.def bytes_restantes = r8
-.def lectural        = r9
-.def lecturah        = r10
-.def min_distl       = r11
-.def min_disth       = r12
-.def min_stepa       = r13
-.def min_stepb       = r14
-.def temp_byte        = r15
-.def temp            = r16
-.def templ           = r17
-.def temph           = r18
-.def stepa           = r19
-.def stepb           = r20
-.def estado          = r21
-.def objetivo        = r22
-.def left_ovfs       = r23
-.def data_type       = r24
-.def byte_recibido   = r25
+
+.def loop_index        = r3
+.def first_stepa       = r4
+.def first_stepb       = r5
+.def last_stepa        = r6
+.def last_stepb        = r7
+.def bytes_restantes   = r8
+.def lectural          = r9
+.def lecturah          = r10
+.def min_distl         = r11
+.def min_disth         = r12
+.def min_stepa         = r13
+.def min_stepb         = r14
+
+.def temp              = r16
+.def stepa             = r17
+.def stepb             = r18
+.def estado_comando    = r19
+.def estado_medicion   = r20
+.def comando_recibido  = r21
+.def left_ovfs         = r22
+.def data_type         = r23
+.def temp_byte         = r24
+.def byte_recibido     = r25
 
 
 

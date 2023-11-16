@@ -62,8 +62,8 @@ main:
 	clr zero
     ldi stepa, STEPA_INICIAL
     ldi stepb, STEPB_INICIAL
-    ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
+    ldi estado_medicion, WAIT_MEDIR
+    ldi estado_comando, WAIT_COMMAND
 
 	rcall config_ports
 	rcall config_timer0
@@ -93,16 +93,24 @@ main:
 
 main_loop:
 	
-	cpi estado, IDLE
-	breq main_sleep
+    sei
+    ; Solo dormir si no hay ni comandos
+    ; ni mediciones pendientes
+	cpi estado_medicion, WAIT_MEDIR
+	brne main_loop_accion_pendiente
+    cpi estado_comando, WAIT_COMMAND
+    breq main_sleep
+    cli
 
-    cpi estado, MEDIR
+main_loop_accion_pendiente:
+
+    cpi estado_medicion, MEDIR
     breq main_iniciar_medicion
 
-    cpi estado, PROCESAR_BYTE
+    cpi estado_comando, PROCESAR_BYTE
     breq main_procesar_byte
 
-    cpi estado, PROCESAR_COMANDO
+    cpi estado_comando, PROCESAR_COMANDO
     breq main_procesar_comando
 	
 	rjmp main_loop
@@ -111,10 +119,9 @@ main_loop:
 ; ------------------------------------------------------
 ;						SLEEP
 ; ------------------------------------------------------
+    
 
 main_sleep:
-	cpi objetivo, WAITING_COMMAND
-	brne main_loop
     cbi PORTB, ACTIVE_LED
 
     ; Modo Idle. Mantiene prendida la USART para despertarse
@@ -132,9 +139,9 @@ main_sleep:
 ; ------------------------------------------------------
 
 main_iniciar_medicion:
-    ; Esperamos que el ECHO haga una interrupci�n
+    ; Esperamos que el ECHO haga una interrupción
     ; Mientras tanto no hay que hacer nada
-    ldi estado, MIDIENDO
+    ldi estado_medicion, MIDIENDO
     rcall send_trigger
 
     rjmp main_loop
@@ -145,17 +152,17 @@ main_iniciar_medicion:
 ; ------------------------------------------------------
 
 main_procesar_byte:
-    ; Vemos para qu� quer�amos este byte
-    cpi objetivo, WAITING_BYTES_MOVE_TO
+    ; Vemos para qué queríamos este byte
+    cpi comando_recibido, MOVE_TO
     breq comando_byte_move_to
 
-    cpi objetivo, WAITING_BYTES_SCAN_REGION
+    cpi comando_recibido, SCAN_REGION
     breq comando_byte_scan_region
 
-    cpi objetivo, WAITING_BYTES_WRITE_INFO
+    cpi comando_recibido, WRITE_INFO
     breq comando_byte_write_info
 
-    ; No deber�amos llegar ac�
+    ; No deberíamos llegar acá
     rjmp main_loop
 
 comando_byte_move_to:
@@ -177,72 +184,68 @@ comando_byte_write_info:
 
 main_procesar_comando:
     ; La lectura de los siguientes comandos no modifican el estado
-    ; (a excepci�n de ABORT) y se pueden realizar siempre
+    ; de la medición (a excepción de ABORT) y se pueden realizar siempre
 
-    cpi byte_recibido, ABORT
+    cpi comando_recibido, ABORT
     breq comando_abort
 
-    cpi byte_recibido, PING
+    cpi comando_recibido, PING
     breq comando_ping
 
-    cpi byte_recibido, ASK_POSITION
+    cpi comando_recibido, ASK_POSITION
     breq comando_ask_position
 
-    cpi byte_recibido, ASK_LASER
+    cpi comando_recibido, ASK_LASER
     breq comando_ask_laser
 
-	cpi byte_recibido, ASK_STATE
+	cpi comando_recibido, ASK_STATE
 	breq comando_ask_state
 
-	cpi byte_recibido, ASK_OBJECTIVE
-	breq comando_ask_objective
-
-    ; Para otros comandos, primero verificamos si estamos en WAITING_COMMAND
-    ; Si no, devolvemos que estamos ocupados
-    cpi objetivo, WAITING_COMMAND
+    ; Para otros comandos, primero verificamos
+    ; Si no hay alguna medición en curso
+    cpi estado_medicion, WAIT_MEDIR
     brne send_busy
 
     ; Leer comando
 
-    cpi byte_recibido, SCAN_ROW
+    cpi comando_recibido, SCAN_ROW
     breq comando_scan_row
 
-	cpi byte_recibido, SCAN_COL
+	cpi comando_recibido, SCAN_COL
     breq comando_scan_col
 
-	cpi byte_recibido, SCAN_ALL
+	cpi comando_recibido, SCAN_ALL
     breq comando_scan_all
 
-	cpi byte_recibido, SCAN_REGION
+	cpi comando_recibido, SCAN_REGION
     breq comando_scan_region
 
-    cpi byte_recibido, MOVE_TO
+    cpi comando_recibido, MOVE_TO
     breq comando_move_to
 
-    cpi byte_recibido, MEDIR_DIST
+    cpi comando_recibido, MEDIR_DIST
     breq comando_medir_dist
 
-    cpi byte_recibido, TURN_ON_LASER
+    cpi comando_recibido, TURN_ON_LASER
     breq comando_turn_on_laser
 
-    cpi byte_recibido, TURN_OFF_LASER
+    cpi comando_recibido, TURN_OFF_LASER
     breq comando_turn_off_laser
 
-    cpi byte_recibido, WRITE_INFO
+    cpi comando_recibido, WRITE_INFO
     breq comando_write_info
 
     ; Comando desconocido
     ldi data_type, WHAT
     rcall send_data
-	ldi estado,IDLE
+	ldi estado_comando, WAIT_COMMAND
     rjmp main_loop
 
 
 send_busy:
-
     ldi data_type, BUSY
     rcall send_data
-	ldi estado,IDLE
+	ldi estado_comando, WAIT_COMMAND
 
     rjmp main_loop
 
@@ -264,10 +267,6 @@ comando_ask_laser:
 
 comando_ask_state:
 	rcall rutina_comando_ask_state
-	rjmp main_loop
-
-comando_ask_objective:
-	rcall rutina_comando_ask_objective
 	rjmp main_loop
 
 comando_scan_row:
@@ -316,5 +315,4 @@ end_main:
 
 .include "MARK1_config.asm"
 .include "MARK1_handlers.asm"
-.include "MARK1_servos.asm"
 .include "MARK1_rutina.asm"

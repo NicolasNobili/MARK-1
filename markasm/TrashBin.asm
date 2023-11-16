@@ -1,3 +1,26 @@
+.equ GO_TO_SLEEP               = 0x00
+.equ SCANNING                  = 0x01
+.equ PRENDER_LASER             = 0x02
+.equ APAGAR_LASER              = 0x03
+.equ SINGLE_MEASURE            = 0x04
+.equ WAITING_BYTES_MOVE_TO     = 0x05
+.equ WAITING_BYTES_SCAN_REGION = 0x06
+.equ WAITING_BYTES_WRITE_INFO  = 0x07
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 comando_byte_move_to:
     ; Vemos a qu? corresponde este byte
     mov temp, bytes_restantes

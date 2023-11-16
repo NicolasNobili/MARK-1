@@ -77,14 +77,14 @@ actualizar_OCR1A:
     mul stepa, temp
 
     ; Suma
-    ldi templ, LOW(MIN_OCR1A)
-    ldi temph, HIGH(MIN_OCR1A)
-    add templ, r0
-    adc temph, r1
+    ldi xl, LOW(MIN_OCR1A)
+    ldi xh, HIGH(MIN_OCR1A)
+    add xl, r0
+    adc xh, r1
 
     ; Guardado
-    sts OCR1AH, temph
-    sts OCR1AL, templ
+    sts OCR1AH, xh
+    sts OCR1AL, xl
 
     pop temp
     out sreg, temp
@@ -108,14 +108,14 @@ actualizar_OCR1B:
     ldi temp, STEP_OCR1B
     mul stepb, temp
 
-    ldi templ, LOW(MIN_OCR1B)
-    ldi temph, HIGH(MIN_OCR1B)
+    ldi xl, LOW(MIN_OCR1B)
+    ldi xh, HIGH(MIN_OCR1B)
     
-    add templ, r0
-    adc temph, r1
+    add xl, r0
+    adc xh, r1
 
-    sts OCR1BH, temph
-    sts OCR1BL, templ
+    sts OCR1BH, xh
+    sts OCR1BL, xl
 
     pop temp
     out sreg, temp

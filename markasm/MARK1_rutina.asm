@@ -57,19 +57,20 @@ stop_timer2:
 ; ------------------------------------------------------
 
 send_trigger:
-	;Limpiar flag de PCI0 y activar la interrupcion
-	sbi PCIFR,PCIF0
+	; Limpiar flag de PCI0 y activar la interrupcion
+    sbic PCIFR, PCIF0
+	sbi PCIFR, PCIF0
 	 
-	lds temp,PCICR
-	ori temp,(1 << PCIE0)
-	sts PCICR,temp
+	lds temp, PCICR
+	ori temp, (1 << PCIE0)
+	sts PCICR, temp
 	
 	sbi PORTB, ULTRASOUND_TRIG
 	ldi temp, LOOPS_TRIGGER
-	mov loop_trigger, temp
-loop_trig:
-	dec loop_trigger
-	brne loop_trig
+	mov loop_index, temp
+send_trigger_loop:
+	dec loop_index
+	brne send_trigger_loop
 	cbi PORTB, ULTRASOUND_TRIG
 
 	ret
@@ -96,23 +97,21 @@ send_data:
 	cpi data_type, DEBUG
 	breq send_debug
 
-	cpi data_type, STATE
+	cpi data_type, MEASURE_STATE
 	breq send_state
 
-	cpi data_type, OBJECTIVE
-	breq send_objective
-
-    ; No hace falta mandar bytes extra
+    ; Si se llegó acá, no
+    ; hace falta mandar bytes extra
     rjmp send_data_end
 
 send_measurement:
-    ; Formato: A, B 
+    ; Formato: STEPA, STEPB, LECTURAL, LECTURAH
+    ; (Little-endian) 
     mov temp_byte, stepa
     rcall send_byte
     mov temp_byte, stepb
     rcall send_byte
 
-	;Formato: lectural , lecturah (little-endian)
     mov temp_byte, lectural
     rcall send_byte
 	mov temp_byte, lecturah
@@ -121,7 +120,7 @@ send_measurement:
     rjmp send_data_end
 
 send_position:
-    ; Formato: A, B
+    ; Formato: STEPA, STEPB
     mov temp_byte, stepa
     rcall send_byte
     mov temp_byte, stepb
@@ -130,19 +129,14 @@ send_position:
     rjmp send_data_end
 
 send_debug:
+    ; Acá poner el dato que sea necesario.
 	mov temp_byte, lecturah
     rcall send_byte
 
 	rjmp send_data_end
 
 send_state:
-	mov temp_byte, estado
-	rcall send_byte
-
-	rjmp send_data_end
-
-send_objective:
-	mov temp_byte, objetivo
+	mov temp_byte, estado_medicion
 	rcall send_byte
 
 	rjmp send_data_end
@@ -166,29 +160,29 @@ send_byte:
 ; ------------------------------------------------------
 
 rutina_comando_byte_move_to:
-    ; Vemos a qu? corresponde este byte
+    ; Vemos a qué corresponde este byte
     mov temp, bytes_restantes
 
     cpi temp, 2
-    breq comando_byte_stepa
+    breq comando_move_to_byte_stepa
 
     cpi temp, 1
-    breq comando_byte_stepb
+    breq comando_move_to_byte_stepb
 
-    ; No deber?amos llegar ac?
+    ; No deberíamos llegar acá
     rjmp rutina_comando_byte_move_to_end
 
 
-comando_byte_stepa:
-    ; Todav?a falta stepb...
+comando_move_to_byte_stepa:
+    ; Todavía falta stepb...
     mov stepa, byte_recibido
     dec bytes_restantes
-    ldi estado, WAIT_BYTE
+    ldi estado_comando, WAIT_BYTE
 
     rjmp rutina_comando_byte_move_to_end
 
 
-comando_byte_stepb:
+comando_move_to_byte_stepb:
     ; Ya tenemos todos los datos! Podemos proceder
     mov stepb, byte_recibido
 
@@ -203,11 +197,11 @@ comando_byte_stepb:
     ; Hacer un delay por overflows para
     ; dar tiempo al movimiento
     ldi left_ovfs, DELAY_MOVIMIENTO
-    ldi estado, DELAY
+    ldi estado_medicion, DELAY_MOVE_TO
     rcall start_timer0
 
-    ; Luego del delay de movimiento no queremos hacer nada
-    ldi objetivo, WAITING_COMMAND
+    ; Ya podemos recibir nuevos comandos
+    ldi estado_comando, WAIT_COMMAND
 
 rutina_comando_byte_move_to_end:
     ret
@@ -237,27 +231,31 @@ rutina_comando_byte_scan_region:
 comando_byte_first_stepa:
 	mov first_stepa, byte_recibido
     dec bytes_restantes
-    ldi estado, WAIT_BYTE
+    ldi estado_comando, WAIT_BYTE
 
 	rjmp rutina_comando_byte_scan_region_end
 
 comando_byte_first_stepb:
 	mov first_stepb, byte_recibido
     dec bytes_restantes
-    ldi estado, WAIT_BYTE
+    ldi estado_comando, WAIT_BYTE
 
 	rjmp rutina_comando_byte_scan_region_end
 
 comando_byte_last_stepa:
 	mov last_stepa, byte_recibido
     dec bytes_restantes
-    ldi estado, WAIT_BYTE
+    ldi estado_comando, WAIT_BYTE
 
 	rjmp rutina_comando_byte_scan_region_end
 
 comando_byte_last_stepb:
+    ; Ya tenemos todos los datos
 	mov last_stepb, byte_recibido
 	rcall start_scan
+
+    ; Podemos recibir nuevos comandos
+    ldi estado_comando, WAIT_COMMAND
 
 	rjmp rutina_comando_byte_scan_region_end
 
@@ -274,19 +272,26 @@ rutina_comando_byte_scan_region_end:
 rutina_comando_byte_write_info:
     ; Guardar al búffer
     st x+, byte_recibido
+    ldi estado_comando, WAIT_BYTE
 
     ; Fijarse si es el null para terminar
-    cpi byte_recibido, 0
-    breq comando_byte_write_info_end
+    cpi byte_recibido, 'f'
+    breq rutina_comando_byte_write_info_eeprom
+
+    ; Fijarse si llegamos al límite de
+    ; longitud del string
+    dec bytes_restantes
+    breq rutina_comando_byte_write_info_eeprom
 
     rjmp rutina_comando_byte_write_info_end
     
-comando_byte_write_info_end:
+rutina_comando_byte_write_info_eeprom:
     ; Iniciar escritura de RAM a EEPROM
     ; Bloquea el programa
     rcall copiar_buffer_a_eeprom
-    ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
+    ldi estado_comando, WAIT_COMMAND
+
+    ; Notificar escritura completa
     ldi data_type, WRITE_INFO_DONE
     rcall send_data
 
@@ -300,8 +305,8 @@ rutina_comando_byte_write_info_end:
 
 rutina_comando_abort:
     ; Nos quedamos donde estamos
-    ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
+    ldi estado_medicion, WAIT_MEDIR
+    ldi estado_comando, WAIT_COMMAND
 
     ret
 
@@ -310,44 +315,36 @@ rutina_comando_ping:
     ; Ping - pong
     ldi data_type, PONG
     rcall send_data
-	ldi estado,IDLE
+	ldi estado_comando, WAIT_COMMAND
 
     ret
 
 
 rutina_comando_ask_position:
-    ; Devolvemos la posici?n
+    ; Devolvemos la posición
     ldi data_type, CURRENT_POSITION
     rcall send_data
-	ldi estado,IDLE
+	ldi estado_comando, WAIT_COMMAND
 
     ret
 
 
 rutina_comando_ask_laser:
-    ; Devolvemos el estado actual del l?ser
+    ; Devolvemos el estado actual del láser
     sbis PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     sbic PORTD, LASER_PIN
     ldi data_type, LASER_ON
     rcall send_data
-	ldi estado,IDLE
+	ldi estado_comando, WAIT_COMMAND
 
     ret
 
 
 rutina_comando_ask_state:
-	ldi data_type, STATE
+	ldi data_type, MEASURE_STATE
 	rcall send_data
-	ldi estado,IDLE
-
-	ret
-
-
-rutina_comando_ask_objective:
-	ldi data_type, OBJECTIVE
-	rcall send_data
-	ldi estado,IDLE
+	ldi estado_comando, WAIT_COMMAND
 
 	ret
 
@@ -361,6 +358,7 @@ rutina_comando_scan_row:
 	mov last_stepb, stepb
 
 	rcall start_scan
+    ldi estado_comando, WAIT_COMMAND
 
 	ret
 
@@ -374,6 +372,7 @@ rutina_comando_scan_col:
 	mov last_stepb, temp
 
 	rcall start_scan
+    ldi estado_comando, WAIT_COMMAND
 
 	ret
 
@@ -388,6 +387,7 @@ rutina_comando_scan_all:
 	mov last_stepb, temp
 
 	rcall start_scan
+    ldi estado_comando, WAIT_COMMAND
 
 	ret
 
@@ -396,8 +396,7 @@ rutina_comando_scan_region:
     ; Necesitamos 4 bytes mas (first_stepa, first_stepb, last_stepa, last_stepb)
 	ldi temp, 4
 	mov bytes_restantes, temp
-	ldi estado, WAIT_BYTE
-    ldi OBJETIVO, WAITING_BYTES_SCAN_REGION
+	ldi estado_comando, WAIT_BYTE
 
 	ret
 
@@ -406,69 +405,21 @@ rutina_comando_move_to:
     ; Necesitamos 2 bytes mas (stepa, stepb)
 	ldi temp, 2
 	mov bytes_restantes, temp
-    ldi estado, WAIT_BYTE
-    ldi OBJETIVO, WAITING_BYTES_MOVE_TO
+    ldi estado_comando, WAIT_BYTE
 
     ret
 
 
 rutina_comando_medir_dist:
-    ; Queremos medir solo una vez
-	ldi estado, MEDIR
-	ldi objetivo, SINGLE_MEASURE
+    mov first_stepa, stepa
+	mov last_stepa, stepa
+    mov first_stepb, stepb
+	mov last_stepb, stepb
 
-    ret
-
-
-rutina_comando_turn_on_laser:
-	; Encender l?ser y notificar cambio de estado
-	sbi PORTD, LASER_PIN
-    ldi data_type, LASER_ON
-    rcall send_data
-	ldi estado,IDLE
-
-    ret
-
-
-rutina_comando_turn_off_laser:
-	; Apagar l?ser y notificar cambio de estado
-	cbi PORTD, LASER_PIN
+    ; Apagar el laser
+    cbi PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     rcall send_data
-	ldi estado,IDLE
-
-    ret
-
-
-rutina_comando_write_info:
-    ldx buffer
-    ldi estado, WAIT_BYTE
-    ldi objetivo, WAITING_BYTES_WRITE_INFO
-
-    ret
-
-; ------------------------------------------------------
-;                      START SCAN
-; ------------------------------------------------------
-
-start_scan:
-	;Deben estar cargados los valores limites de stepa y stepb segun sea el caso
-	
-	; Mover el servo A y B a la primer  posicion
-	mov stepa,first_stepa
-	mov stepb,first_stepb
-
-	rcall actualizar_OCR1A
-	rcall actualizar_OCR1B
-
-	ldi data_type, CURRENT_POSITION
-    rcall send_data
-
-	; Hacer un delay por overflows para
-    ; dar tiempo al movimiento
-    ldi left_ovfs, DELAY_MOVIMIENTO
-    ldi estado, DELAY
-    rcall start_timer0
 
 	; Setear la distancia mínima en 0xFFFF
 	clr min_disth
@@ -477,8 +428,77 @@ start_scan:
 	clr min_distl
 	dec min_distl
 
-	; Actualizar objetivo
-    ldi objetivo, SCANNING
+    ldi estado_medicion, MEDIR
+
+    ldi estado_comando, WAIT_COMMAND
+
+    ret
+
+
+rutina_comando_turn_on_laser:
+	; Encender láser y notificar cambio de estado
+	sbi PORTD, LASER_PIN
+    ldi data_type, LASER_ON
+    rcall send_data
+	ldi estado_comando, WAIT_COMMAND
+
+    ret
+
+
+rutina_comando_turn_off_laser:
+	; Apagar láser y notificar cambio de estado
+	cbi PORTD, LASER_PIN
+    ldi data_type, LASER_OFF
+    rcall send_data
+	ldi estado_comando, WAIT_COMMAND
+
+    ret
+
+
+rutina_comando_write_info:
+    ldi temp, MAX_STRING
+	mov bytes_restantes, temp
+    ldx buffer
+    ldi estado_comando, WAIT_BYTE
+
+    ret
+
+; ------------------------------------------------------
+;                      START SCAN
+; ------------------------------------------------------
+
+start_scan:
+	; Deben estar cargados los valores
+    ; límite de stepa y stepb según sea el caso
+
+	; Mover el servo A y B a la primer posición
+	mov stepa, first_stepa
+	mov stepb, first_stepb
+
+	rcall actualizar_OCR1A
+	rcall actualizar_OCR1B
+
+    ; Apagar el laser
+    cbi PORTD, LASER_PIN
+    ldi data_type, LASER_OFF
+    rcall send_data
+
+    ; Notificar cambio de posición
+	ldi data_type, CURRENT_POSITION
+    rcall send_data
+
+	; Hacer un delay por overflows para
+    ; dar tiempo al movimiento
+    ldi left_ovfs, DELAY_MOVIMIENTO
+    ldi estado_medicion, DELAY_SCAN
+    rcall start_timer0
+
+	; Setear la distancia mínima en 0xFFFF
+	clr min_disth
+	dec min_disth
+
+	clr min_distl
+	dec min_distl
 
 	ret
 
@@ -491,20 +511,22 @@ copiar_buffer_a_eeprom:
     ldx buffer
     ldy INFO_ADDR
     ldi temp, MAX_STRING
-    mov index, temp
+    mov loop_index, temp
 
 copiar_buffer_a_eeprom_loop:
     ld temp_byte, x+
     rcall eeprom_write
     ld temp, y+  ; Incrementar Y
 
+    cpi temp_byte, 0
+    breq copiar_buffer_a_eeprom_end
 
-    cp temp_byte, zero
-    brne copiar_buffer_a_eeprom_loop
+    dec loop_index
+    breq copiar_buffer_a_eeprom_end
 
-    dec index
-    brne copiar_buffer_a_eeprom_loop
+    rjmp copiar_buffer_a_eeprom_loop
 
+copiar_buffer_a_eeprom_end:
     ; Por las dudas, finalizar con un NULL
     ; en la última posición escrita
     ld temp, -y
@@ -522,8 +544,8 @@ eeprom_write:
     rjmp eeprom_write
     
     ; Address
-    out EEARH, xh
-    out EEARL, xl
+    out EEARH, yh
+    out EEARL, yl
 
     ; Data
     out EEDR, temp_byte
@@ -533,3 +555,123 @@ eeprom_write:
     sbi EECR, EEPE
 
     ret
+
+
+; ------------------------------------------------------
+;                  STEP UPS Y DOWNS
+; ------------------------------------------------------
+
+; Incrementa STEPA si es posible
+stepa_up:
+    cpi stepa, MAX_STEPA
+    breq stepa_up_end
+
+    inc stepa
+    rcall actualizar_OCR1A
+
+stepa_up_end:
+    ret
+
+
+; Decrementa STEPA si es posible
+stepa_down:
+    cpi stepa, 0
+    breq stepa_down_end
+
+    dec stepa
+    rcall actualizar_OCR1A
+
+stepa_down_end:
+    ret
+
+
+; Incrementa STEPB si es posible
+stepb_up:
+    cpi stepb, MAX_STEPB
+    breq stepb_up_end
+
+    inc stepb
+    rcall actualizar_OCR1B
+
+stepb_up_end:
+    ret
+
+
+; Decrementa STEPB si es posible
+stepb_down:
+    cpi stepb, 0
+    breq stepb_down_end
+
+    dec stepb
+    rcall actualizar_OCR1B
+
+stepb_down_end:
+    ret
+
+
+; ------------------------------------------------------
+;                 MODIFICACIÓN DE OCR1X
+; ------------------------------------------------------
+
+; Las funciones step up, down lo hacen automáticamente
+; Escribe en OCR1A = STEPA * STEP_OCR1A + MIN_OCR1A
+actualizar_OCR1A:
+	push r0
+	push r1
+
+    in temp, sreg
+    push temp
+    cli
+
+    ; Multiplicación
+    ldi temp, STEP_OCR1A
+    mul stepa, temp
+
+    ; Suma
+    ldi xl, LOW(MIN_OCR1A)
+    ldi xh, HIGH(MIN_OCR1A)
+    add xl, r0
+    adc xh, r1
+
+    ; Guardado
+    sts OCR1AH, xh
+    sts OCR1AL, xl
+
+    pop temp
+    out sreg, temp
+
+	pop r1
+	pop r0
+	 
+    ret
+
+
+; Las funciones step up, down lo hacen automáticamente
+; Escribe en OCR1B = STEPB * STEP_OCR1B + MIN_OCR1B
+actualizar_OCR1B:
+	push r0
+	push r1
+
+    in temp, sreg
+    push temp
+    cli
+
+    ldi temp, STEP_OCR1B
+    mul stepb, temp
+
+    ldi xl, LOW(MIN_OCR1B)
+    ldi xh, HIGH(MIN_OCR1B)
+    
+    add xl, r0
+    adc xh, r1
+
+    sts OCR1BH, xh
+    sts OCR1BL, xl
+
+    pop temp
+    out sreg, temp
+
+	pop r1
+	pop r0
+    ret
+

@@ -10,6 +10,8 @@
 ;                   OVERFLOW TIMER 0
 ; ------------------------------------------------------
 
+; Timer 0 solo se prende al iniciar comandos
+; de MOVE TO o de ESCANEO.
 handler_OVF0:
     in temp, sreg
     push temp
@@ -22,57 +24,72 @@ handler_OVF0:
     ; timer 0 y ver qué sigue hacer
     rcall stop_timer0
 
-    cpi objetivo, SCANNING
+    ; Solo deberíamos estar acá
+    ; si se inició un delay
+
+    cpi estado_medicion, DELAY_SCAN
     breq objetivo_scanning
 
-	cpi objetivo, PRENDER_LASER
-    breq objetivo_prender_laser
+    cpi estado_medicion, DELAY_LASER
+    breq objetivo_laser
 
-	cpi objetivo, APAGAR_LASER
-    breq objetivo_apagar_laser
+    cpi estado_medicion, DELAY_MOVE_TO
+    breq objetivo_move_to
 
-    ; Otro objetivo
-    ldi estado, IDLE
+    ; Otro estado que no sea delay
+    ; (no deberíamos estar acá)
+    ldi estado_medicion, WAIT_MEDIR
     rjmp handler_OVF0_end
 
 objetivo_scanning:
-    rcall stop_timer0
-
-    ; Solicitamos una medición (al main loop)
-    ldi estado, MEDIR
+    ldi estado_medicion, MEDIR
 
     rjmp handler_OVF0_end
 
-objetivo_prender_laser:
-    ; Es necesario?
-	rcall stop_timer0
+objetivo_laser:
+    sbis PORTD, LASER_PIN
+    rjmp objetivo_prender_laser
+    rjmp objetivo_apagar_laser
 
-    ; Encender láser y notificar cambio de estado
-	sbi PORTD, LASER_PIN
+objetivo_prender_laser:
+    ; Si el láser está apagado, apenas
+    ; terminamos el scan y lo debemos prender
+    sbi PORTD, LASER_PIN
     ldi data_type, LASER_ON
     rcall send_data
 
-    ; Dar un tiempo para mantener el laser prendido
-	ldi estado, DELAY
-	ldi objetivo, APAGAR_LASER
-	ldi left_ovfs, DELAY_LASER
-	rcall start_timer0
+    cp first_stepa, last_stepa
+    brne objetivo_prender_laser_delay_scan
+    cp first_stepb, last_stepb
+    brne objetivo_prender_laser_delay_scan
 
-	rjmp handler_OVF0_end
+objetivo_prender_laser_delay_single_measure:
+    ldi left_ovfs, DELAY_SINGLE_MEASURE
+    rjmp objetivo_prender_laser_timer0
+
+objetivo_prender_laser_delay_scan:
+    ldi left_ovfs, DELAY_DURACION_LASER
+
+objetivo_prender_laser_timer0:
+    rcall start_timer0
+
+    rjmp handler_OVF0_end
 
 objetivo_apagar_laser:
-    ; Se terminó la fiesta
-	cbi PORTD, LASER_PIN
+    cbi PORTD, LASER_PIN
     ldi data_type, LASER_OFF
     rcall send_data
-	ldi data_type, SCAN_DONE
-	rcall send_data
 
-	rcall stop_timer0
-	ldi estado, IDLE
-	ldi objetivo, WAITING_COMMAND
+    ldi estado_medicion, WAIT_MEDIR
 
-	rjmp handler_OVF0_end
+    rjmp handler_OVF0_end
+
+objetivo_move_to:
+    ; MOVE_TO no pide nada más,
+    ; llegamos al destino :)
+    ldi estado_medicion, WAIT_MEDIR
+
+    rjmp handler_OVF0_end
 
 handler_OVF0_end:
     pop temp
@@ -109,15 +126,30 @@ handler_URXC:
     lds byte_recibido, UDR0
 
     ; Ver si esto es un byte extra de un comando
-    cpi estado, WAIT_BYTE
-    breq byte_extra_recibido
+    cpi estado_comando, WAIT_BYTE
+    breq handler_URXC_byte_extra_recibido
 
-    ; Interpretamos como un comando o inicio de comando en sí
-    ldi estado, PROCESAR_COMANDO
+    ; Ver si estamos ya procesando otro comando
+    cpi estado_comando, WAIT_COMMAND
+    breq handler_URXC_comando_recibido
+
+    ; Si no, estamos procesando algo
+    ; Se descarta el byte (notificamos
+    ; que estamos ocupados)
+    ldi data_type, BUSY
+    rcall send_data
+
     rjmp handler_URXC_end
 
-byte_extra_recibido:
-    ldi estado, PROCESAR_BYTE
+handler_URXC_comando_recibido:
+    ; Interpretamos como un comando
+    ; o inicio de comando en sí
+    mov comando_recibido, byte_recibido
+    ldi estado_comando, PROCESAR_COMANDO
+    rjmp handler_URXC_end
+
+handler_URXC_byte_extra_recibido:
+    ldi estado_comando, PROCESAR_BYTE
     rjmp handler_URXC_end
 
 handler_URXC_end:
@@ -133,26 +165,6 @@ handler_URXC_end:
 handler_INT0:
     in temp, sreg
     push temp
-
-    ; Falta implementar la medición de tiempo
-
-    ; Mandar información por USART (stepa, stepb, medicion)
-
-    cpi stepa, MAX_STEPA
-    breq terminar_objetivo_aux_aux
-
-    rcall stepa_up
-    ldi estado, DELAY
-    ldi left_ovfs, DELAY_STEP
-    rcall start_timer0
-
-    rjmp handler_INT0_end
-
-terminar_objetivo_aux_aux:
-	ldi stepa,STEPA_INICIAL
-	rcall actualizar_OCR1A
-    ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
 
 handler_INT0_end:
     pop temp
@@ -177,24 +189,34 @@ process_measure:
 	rcall stop_timer2
 
 	;Desactivar interrupcion PCI0
-	lds temp,PCICR
-	andi temp,~(1<<PCIE0)
-	sts PCICR,temp
+	lds temp, PCICR
+	andi temp, ~(1<<PCIE0)
+	sts PCICR, temp
 
-	;Lectura de medicion
+	; Lectura de medición
 	lds lectural, TCNT2
 
-	
-    ; Comparar con mínimo
+    ; Comparar con mínimo:
+
+    ; Caso fácil: la distancia mínima
+    ; tiene byte alto menor a lecturah
+    ; No intercambiamos
 	cp min_disth, lecturah
 	brlo send_measure
 	
+    ; Caso fácil: la distancia mínima
+    ; tiene byte alto mayor a lecturah
+    ; Intercambiamos
 	cp lecturah, min_disth
 	brlo actualizar_minimo
 
+    ; En este caso, los bytes altos
+    ; son iguales, así que comparamos
+    ; en base al byte low.
 	cp lectural, min_distl
 	brlo actualizar_minimo
 
+    ; No hay intercambio.
 	rjmp send_measure
 	
 actualizar_minimo:
@@ -209,28 +231,15 @@ send_measure:
     ldi data_type, MEASUREMENT
 	rcall send_data
 
-    ; Cómo seguimos depende del objetivo actual
-
-	cpi objetivo, SINGLE_MEASURE
-	breq terminar_single_measure
-    
-    cpi objetivo, SCANNING
-    breq continuar_scanning
-
-    ; No debería llegar acá
-    rjmp handler_PCI0_end
-
-continuar_scanning:
-
 continuar_scan_stepa:
     ; Vemos si podemos seguir avanzando
+    ; Si no, debemos modificar stepb.
     cp stepa, last_stepa
     breq continuar_scan_stepb
 
-    ; Podemos seguir, dar tiempo
-    ; para moverse a la siguiente posición
-
-	cp first_stepa,last_stepa
+    ; Podemos seguir, ver en qúe dirección
+    ; corresponde.
+	cp first_stepa, last_stepa
 	brlo continuar_scan_stepa_derecha
 
 continuar_scan_stepa_izquierda:
@@ -241,8 +250,8 @@ continuar_scan_stepa_derecha:
     rcall stepa_up
 
 continuar_scan_stepa_delay:
-
-    ldi estado, DELAY
+    ; Actualizar posición, dar delay también
+    ldi estado_medicion, DELAY_SCAN
     ldi left_ovfs, DELAY_STEP
     rcall start_timer0
 	
@@ -253,20 +262,23 @@ continuar_scan_stepa_delay:
 
 continuar_scan_stepb:
 	; Vemos si podemos seguir avanzando
-	; Se llega a aca despues de haber escaneado la fila [first_stepa : last_stepa , stepb]
+	; Se llega a acá despues de haber
+    ; escaneado la fila
+    ; [first_stepa : last_stepa , stepb]
     cp stepb, last_stepb
 	breq terminar_scanning
 	
-	mov temp, last_stepa
-
-	;Permutamos first_stepa con last_stepa para cambiar la direccion del movimiento horizontal
+	; Permutamos first_stepa con last_stepa
+    ; para cambiar la direccion del
+    ; movimiento horizontal
+    mov temp, last_stepa
 	mov last_stepa, first_stepa
 	mov first_stepa, temp
 
 	; Podemos seguir, dar tiempo
     ; para moverse a la siguiente posición
 	rcall stepb_up
-    ldi estado, DELAY
+    ldi estado_medicion, DELAY_SCAN
     ldi left_ovfs, DELAY_STEP
     rcall start_timer0
 	
@@ -275,8 +287,20 @@ continuar_scan_stepb:
 
 	rjmp handler_PCI0_end
 
-
 terminar_scanning:
+    cp first_stepa, last_stepa
+    brne terminar_scanning_multiple_measure
+    cp first_stepb, last_stepb
+    brne terminar_scanning_multiple_measure
+
+terminar_scanning_single_measure:
+    ldi left_ovfs, DELAY_SINGLE_MEASURE
+    ldi estado_medicion, DELAY_LASER
+    rcall start_timer0
+
+    rjmp handler_PCI0_end
+
+terminar_scanning_multiple_measure:
     ; No podemos seguir avanzando, vamos
     ; a apuntar al mínimo que encontramos
     mov stepa, min_stepa
@@ -288,20 +312,14 @@ terminar_scanning:
     ldi data_type, CURRENT_POSITION
     rcall send_data
     
-    ; Ahora queremos prenderle un laser,
+    ; Ahora queremos prenderle un láser,
     ; después de habernos movido ahí
-    ldi objetivo, PRENDER_LASER
-    ldi estado, DELAY
+    ; (el handler de timer 0 lo hace)
+    ldi estado_medicion, DELAY_LASER
     ldi left_ovfs, DELAY_MOVIMIENTO
     rcall start_timer0
 
     rjmp handler_PCI0_end
-
-terminar_single_measure:
-    ; Nos quedamos donde estamos y listo
-	ldi estado, IDLE
-    ldi objetivo, WAITING_COMMAND
-	rjmp handler_PCI0_end
 
 start_measure:
     ; Flanco ascendente, recién comienza la lectura
@@ -313,5 +331,5 @@ start_measure:
 
 handler_PCI0_end:
 	pop temp
-	out sreg,temp
+	out sreg, temp
 	reti
