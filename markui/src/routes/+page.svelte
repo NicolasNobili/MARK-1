@@ -657,7 +657,7 @@
           on:click={() => writeData(Cmd.ScanAll)}
           class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 w-full leading-none"
         >
-          Escanear todo
+          Escanear
         </button>
 
         <button
