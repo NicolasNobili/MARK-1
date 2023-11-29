@@ -37,8 +37,8 @@ buffer: .byte MAX_STRING
     rjmp main
 .org INT0addr
     rjmp handler_INT0
-.org PCI0addr
-	rjmp handler_PCIO
+.org PCI2addr
+	rjmp handler_PCI2
 .org URXCaddr
     rjmp handler_URXC
 .org OVF0addr
@@ -70,7 +70,7 @@ main:
 	rcall config_timer1
 	rcall config_timer2
 	rcall config_USART
-	rcall config_int0
+	; rcall config_int0
     rcall config_pci0
 
 	sbi PORTB, ACTIVE_LED

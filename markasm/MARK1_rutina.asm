@@ -57,21 +57,21 @@ stop_timer2:
 ; ------------------------------------------------------
 
 send_trigger:
-	; Limpiar flag de PCI0 y activar la interrupcion
-    sbic PCIFR, PCIF0
-	sbi PCIFR, PCIF0
+	; Limpiar flag de PCI2 y activar la interrupcion
+    sbic PCIFR, PCIF2
+	sbi PCIFR, PCIF2
 	 
 	lds temp, PCICR
-	ori temp, (1 << PCIE0)
+	ori temp, (1 << PCIE2)
 	sts PCICR, temp
 	
-	sbi PORTB, ULTRASOUND_TRIG
+	sbi PORTD, ULTRASOUND_TRIG
 	ldi temp, LOOPS_TRIGGER
 	mov loop_index, temp
 send_trigger_loop:
 	dec loop_index
 	brne send_trigger_loop
-	cbi PORTB, ULTRASOUND_TRIG
+	cbi PORTD, ULTRASOUND_TRIG
 
 	ret
 
