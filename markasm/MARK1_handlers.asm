@@ -176,21 +176,21 @@ handler_INT0_end:
 ;           INTERRUPCIÓN PIN CHANGE 0 (ECHO)
 ; ------------------------------------------------------
 
-handler_PCIO:
+handler_PCI2:
 	in temp,sreg
 	push temp
 
     ; Determinar en qué flanco estamos
-	sbic PINB, ULTRASOUND_ECHO
+	sbic PIND, ULTRASOUND_ECHO
 	rjmp start_measure
 
 process_measure:
     ; Flanco descendiente, termina la lectura
 	rcall stop_timer2
 
-	;Desactivar interrupcion PCI0
+	;Desactivar interrupcion PCI2
 	lds temp, PCICR
-	andi temp, ~(1<<PCIE0)
+	andi temp, ~(1<<PCIE2)
 	sts PCICR, temp
 
 	; Lectura de medición

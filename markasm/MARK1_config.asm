@@ -15,17 +15,17 @@ config_ports:
 	out PORTB, zero
 
 	; PORTB
-	cbi PORTB, ULTRASOUND_TRIG
 	sbi DDRB,  SERVOA_PIN
     sbi DDRB,  SERVOB_PIN
-	sbi DDRB,  ULTRASOUND_TRIG
     sbi DDRB,  ACTIVE_LED
-	cbi DDRB,  ULTRASOUND_ECHO
 
 	; PORTD
 	sbi DDRD,  LASER_PIN
-    cbi DDRD,  INT0_PIN
-    sbi PORTD, INT0_PIN
+    ; cbi DDRD,  INT0_PIN
+    ; sbi PORTD, INT0_PIN
+	cbi PORTD, ULTRASOUND_TRIG
+	sbi DDRD,  ULTRASOUND_TRIG
+	cbi DDRD,  ULTRASOUND_ECHO
 
 	; PORTC
 	sbi DDRC,  RESET_PIN
@@ -52,7 +52,7 @@ config_int0:
 config_pci0:
     ; Habilitar pin de ECHO
 	ldi temp, (1 << ULTRASOUND_ECHO)
-	sts PCMSK0, temp
+	sts PCMSK2, temp
 
     ret
 

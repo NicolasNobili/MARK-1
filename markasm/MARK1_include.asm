@@ -64,17 +64,17 @@
 ; ------------------------------------------------------
 
 ; PORTB:
-.equ ULTRASOUND_ECHO = 0
 .equ SERVOA_PIN      = 1
 .equ SERVOB_PIN      = 2
-.equ ULTRASOUND_TRIG = 3
-.equ ACTIVE_LED      = 4
+.equ ACTIVE_LED      = 0
 
 ; PORTD:
 .equ BT_RX     = 0
 .equ BT_TX     = 1
-.equ INT0_PIN  = 2
-.equ LASER_PIN = 3
+.equ ULTRASOUND_TRIG = 2
+.equ ULTRASOUND_ECHO = 3
+; .equ INT0_PIN  = 2
+.equ LASER_PIN = 4
 
 ;PORTC: 
 .equ RESET_PIN = 6
