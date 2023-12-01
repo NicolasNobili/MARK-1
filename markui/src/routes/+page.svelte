@@ -166,7 +166,7 @@
 
     // Calculate normalized coordinates (between 0 and 1)
     const normalizedX = mouseX / canvasRect.width;
-    const normalizedY = mouseY / canvasRect.height;
+    const normalizedY = 1 - mouseY / canvasRect.height;
 
     // Map normalized coordinates to your grid size (N and M)
     const gridX = Math.floor(normalizedX * N);
@@ -261,12 +261,15 @@
         }
 
         // Draw depth square
+        const closest = 255 - Math.min(depthMap);
+        const val = 255 * (1 - (255 - value) / closest);
+
         // @ts-ignore
-        ctx.fillStyle = `rgb(${value + recency}, ${value - recency / 2}, ${value - recency / 2})`;
+        ctx.fillStyle = `rgb(${val + recency}, ${val - recency / 2}, ${val - recency / 2})`;
         // @ts-ignore
         ctx.fillRect(
           i * (screen.width / N),
-          j * (screen.height / M),
+          (N - j) * (screen.height / M) - (screen.height / M),
           screen.width / N,
           screen.height / M,
         );
@@ -280,7 +283,7 @@
           // @ts-ignore
           ctx.fillRect(
             $smoothx * (screen.width / N) + cursorPadding,
-            $smoothy * (screen.height / M) + cursorPadding,
+            (N - $smoothy) * (screen.height / M) + cursorPadding - (screen.height / M - 2 * cursorPadding),
             screen.width / N - 2 * cursorPadding,
             screen.height / M - 2 * cursorPadding,
           );
@@ -288,14 +291,18 @@
 
         // Draw selection
         if (isDrawing) {
-          const selectionWidth = (Math.max(1, currentX - startX + 1) / N) * screen.width;
-          const selectionHeight = (Math.max(1, currentY - startY + 1) / M) * screen.height;
+          const selectionWidth = (Math.max(1, Math.abs(currentX - startX) + 1) / N) * screen.width;
+          const selectionHeight = (Math.max(1, Math.abs(currentY - startY) + 1) / M) * screen.height;
+
+          const selectionStartX = Math.min(startX, currentX);
+          const selectionStartY = Math.min(startY, currentY);
+
           // @ts-ignore
           ctx.fillStyle = "rgb(50, 100, 50)";
           // @ts-ignore
           ctx.fillRect(
-            startX * (screen.width / N),
-            startY * (screen.height / M),
+            selectionStartX * (screen.width / N),
+            (N - selectionStartY) * (screen.height / M) - selectionHeight,
             selectionWidth,
             selectionHeight,
           );
@@ -556,7 +563,7 @@
     // 3D model stuff
     const h = scene3d.clientHeight;
     const w = scene3d.clientWidth;
-    camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(70, w / h, 1, 10);
     scene = new THREE.Scene();
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -564,8 +571,8 @@
     scene3d.appendChild(renderer.domElement);
     const opacity = tweened(0);
 
-    loader.load(
-      "/scene.gltf",
+    loader.load(  
+      "/cutemark-Head.gltf",
       function (gltf) {
         model = gltf.scene.children[0];
         model.traverse((child) => {
