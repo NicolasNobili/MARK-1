@@ -77,16 +77,16 @@
   let x = Math.round(N / 2);
   let smoothx = tweened(x, { easing: cubicOut });
   $: $smoothx = x;
-  $: yaw = ($smoothx / N - 0.5) * Math.PI;
-  $: if (model) model.rotation.z = yaw;
+  $: yaw = ($smoothx / N) * Math.PI + Math.PI / 2;
+  // $: if (model) model.rotation.z = yaw;
 
   // Angle B
   const M = 21;
   let y = Math.round(M / 2);
   let smoothy = tweened(y, { easing: cubicOut });
   $: $smoothy = y;
-  $: pitch = ($smoothy / M - 1) * Math.PI;
-  $: if (model) model.rotation.x = pitch;
+  $: pitch = ($smoothy / M) * Math.PI - Math.PI / 2;
+  // $: if (model) model.rotation.x = pitch;
 
   // Measurement, depth
   let p: number | null = null;
@@ -96,7 +96,9 @@
 
   // Depth Map
   let screen: HTMLCanvasElement;
-  let depthMap = new Uint8Array(M * N);
+  let distanceMap = new Uint16Array(M * N);
+  let closestDistance = 0xffff;
+  let longestDistance = 0x0000;
   let recencyMap = new Uint8Array(M * N);
   let cursorPadding = 1;
   let animationFrame: null | number = null;
@@ -115,7 +117,8 @@
   let camera: THREE.PerspectiveCamera;
   let scene: THREE.Scene;
   let renderer: THREE.WebGLRenderer;
-  let model: THREE.Object3D;
+  let model_head: THREE.Object3D;
+  let model_base: THREE.Object3D;
   const loader = new GLTFLoader();
 
   // Page load animations
@@ -222,6 +225,7 @@
     // Check if only one point
     if (startX == endX && startY == endY) {
       await writeData(Cmd.MoveTo + String.fromCharCode(startX) + String.fromCharCode(startY));
+
       return;
     }
 
@@ -254,22 +258,26 @@
     for (let i = 0; i < M; i++) {
       for (let j = 0; j < N; j++) {
         // Read buffers
-        const value = depthMap[i + N * j];
+        const value = distanceMap[i + N * j];
         const recency = recencyMap[i + N * j];
         if (recency != 0) {
-          recencyMap[i + N * j] -= 1;
+          recencyMap[i + N * j] -= 5;
         }
 
-        // Draw depth square
-        const closest = 255 - Math.min(depthMap);
-        const val = 255 * (1 - (255 - value) / closest);
-
-        // @ts-ignore
-        ctx.fillStyle = `rgb(${val + recency}, ${val - recency / 2}, ${val - recency / 2})`;
+        if (value == 0) {
+          // @ts-ignore
+          ctx.fillStyle = `rgb(0, 0, 0)`;
+        } else {
+          // Draw depth square
+          const u_scale = (longestDistance - value) / (longestDistance - closestDistance);
+          const val = 32 + Math.round(223 * u_scale);
+          // @ts-ignore
+          ctx.fillStyle = `rgb(${val + recency}, ${val - recency / 2}, ${val - recency / 2})`;
+        }
         // @ts-ignore
         ctx.fillRect(
           i * (screen.width / N),
-          (N - j) * (screen.height / M) - (screen.height / M),
+          (N - j) * (screen.height / M) - screen.height / M,
           screen.width / N,
           screen.height / M,
         );
@@ -283,7 +291,9 @@
           // @ts-ignore
           ctx.fillRect(
             $smoothx * (screen.width / N) + cursorPadding,
-            (N - $smoothy) * (screen.height / M) + cursorPadding - (screen.height / M - 2 * cursorPadding),
+            (N - $smoothy) * (screen.height / M) +
+              cursorPadding -
+              (screen.height / M - 2 * cursorPadding),
             screen.width / N - 2 * cursorPadding,
             screen.height / M - 2 * cursorPadding,
           );
@@ -292,7 +302,8 @@
         // Draw selection
         if (isDrawing) {
           const selectionWidth = (Math.max(1, Math.abs(currentX - startX) + 1) / N) * screen.width;
-          const selectionHeight = (Math.max(1, Math.abs(currentY - startY) + 1) / M) * screen.height;
+          const selectionHeight =
+            (Math.max(1, Math.abs(currentY - startY) + 1) / M) * screen.height;
 
           const selectionStartX = Math.min(startX, currentX);
           const selectionStartY = Math.min(startY, currentY);
@@ -326,7 +337,12 @@
             x = rx_queue[1];
             y = rx_queue[2];
             p = rx_queue[4] * 255 + rx_queue[3];
-            depthMap[x + N * y] = 255 - Math.round(p / 255);
+            distanceMap[x + N * y] = p;
+            if (p < closestDistance) {
+              closestDistance = p;
+            } else if (p > longestDistance) {
+              longestDistance = p;
+            }
             recencyMap[x + N * y] = 255;
             angle_fr = true;
           }
@@ -549,6 +565,16 @@
     animationFrame = requestAnimationFrame(animate);
 
     renderer.clear();
+    if (model_head) {
+      model_head.position.set(0, +0.028, 0);
+      model_head.rotation.order = "YXZ";
+      model_head.rotation.y = yaw;
+      model_head.rotation.x = pitch;
+      model_head.translateY(-0.028);
+    }
+    if (model_base) {
+      model_base.rotation.y = yaw;
+    }
     renderer.render(scene, camera);
 
     draw();
@@ -563,27 +589,42 @@
     // 3D model stuff
     const h = scene3d.clientHeight;
     const w = scene3d.clientWidth;
-    camera = new THREE.PerspectiveCamera(70, w / h, 1, 10);
+    camera = new THREE.PerspectiveCamera(20, w / h);
     scene = new THREE.Scene();
 
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // or other shadow map types
+    renderer.shadowMap.autoUpdate = true;
     renderer.setSize(w, h);
     scene3d.appendChild(renderer.domElement);
     const opacity = tweened(0);
 
-    loader.load(  
-      "/cutemark-Head.gltf",
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load("/textures/camo.jpg");
+    const material = new THREE.MeshStandardMaterial({ map: texture });
+
+    // Load Head Model
+    loader.load(
+      "/cutemark-Head/cutemark-Head.gltf",
       function (gltf) {
-        model = gltf.scene.children[0];
-        model.traverse((child) => {
+        model_head = gltf.scene.children[0];
+        model_head.traverse((child) => {
           if (child instanceof THREE.Mesh && child.material) {
+            child.material.roughness = 0.2;
+            child.material.metalness = 0.8;
+            child.material.color.set(0x55ff55);
             child.material.transparent = true;
+            child.material.side = THREE.FrontSide;
             opacity.subscribe((value) => {
               child.material.opacity = value;
             });
           }
         });
-        scene.add(model);
+        model_head.castShadow = true;
+        model_head.receiveShadow = true;
+        model_head.rotation.y = Math.PI;
+        scene.add(model_head);
       },
       undefined,
       function (error) {
@@ -591,15 +632,57 @@
       },
     );
 
+    // Load Base Model
+    loader.load(
+      "/cutemark-Base/cutemark-Base.gltf",
+      function (gltf) {
+        model_base = gltf.scene.children[0];
+        model_base.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material) {
+            child.material.roughness = 0.2;
+            child.material.metalness = 0.8;
+            child.material.color.set(0x55ff55);
+            child.material.transparent = true;
+            child.material.side = THREE.FrontSide;
+            opacity.subscribe((value) => {
+              child.material.opacity = value;
+            });
+          }
+        });
+        model_base.castShadow = true;
+        model_base.receiveShadow = true;
+        scene.add(model_base);
+      },
+      undefined,
+      function (error) {
+        console.log(error);
+      },
+    );
+
+    // Set Opacity Animation
     opacity.set(1, { delay: 1200, duration: 500 });
 
-    var light = new THREE.AmbientLight(0xffffff, 1);
-    scene.add(light);
+    // Add Ambient Light
+    const ambientLight = new THREE.AmbientLight(0x0); // Soft white light
+    scene.add(ambientLight);
 
-    camera.position.z = 2.5;
-    camera.position.y = 1;
-    camera.position.x = -0.03;
-    camera.rotation.x = -0.3;
+    // Add Directional Light from Above
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.castShadow = true;
+    directionalLight.position.set(1, 3, 2);
+    directionalLight.shadow.camera.near = 0.1;
+    directionalLight.shadow.camera.far = 100;
+    directionalLight.shadow.camera.left = -5;
+    directionalLight.shadow.camera.right = 5;
+    directionalLight.shadow.camera.top = 5;
+    directionalLight.shadow.camera.bottom = -5;
+    directionalLight.shadow.mapSize.width = 1024;
+    directionalLight.shadow.mapSize.height = 1024;
+    scene.add(directionalLight);
+
+    camera.position.z = 0.2;
+    camera.position.y = 0.06;
+    camera.rotation.x = -0.15;
 
     animate();
 
@@ -818,8 +901,10 @@
         </p>
         <button
           on:click={() => {
-            depthMap = new Uint8Array(M * N);
+            distanceMap = new Uint16Array(M * N);
             recencyMap = new Uint8Array(M * N);
+            closestDistance = 0xffff;
+            longestDistance = 0x0000;
           }}
           class="rounded-md p-1 text-xl bg-rose-900 hover:bg-rose-800 transition-colors h-12 leading-none px-2"
         >
