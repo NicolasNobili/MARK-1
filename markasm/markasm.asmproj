@@ -15,7 +15,7 @@
     <Name>markasm</Name>
     <RootNamespace>markasm</RootNamespace>
     <ToolchainFlavour>Native</ToolchainFlavour>
-    <EntryFile>$(MSBuildProjectDirectory)\main.asm</EntryFile>
+    <EntryFile>$(MSBuildProjectDirectory)\MARK1_division.asm</EntryFile>
     <KeepTimersRunning>true</KeepTimersRunning>
     <OverrideVtor>false</OverrideVtor>
     <CacheFlash>true</CacheFlash>
@@ -84,6 +84,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="MARK1_config.asm">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="MARK1_division.asm">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="MARK1_handlers.asm">

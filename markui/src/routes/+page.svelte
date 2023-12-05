@@ -932,7 +932,7 @@
       </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 900 }}>
         <span class="underline">Última medición:</span>
-        {p ? p : ""}
+        {p ? `${p / 29} cm` : ""}
       </p>
     {/key}
   </div>
