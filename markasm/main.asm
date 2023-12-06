@@ -75,7 +75,7 @@ main:
 
 	sbi PORTB, ACTIVE_LED
 
-	ldi data_type,CURRENT_POSITION
+	ldi data_type, CURRENT_POSITION
 	rcall send_data
 	
 	sbis PORTD, LASER_PIN
@@ -83,6 +83,9 @@ main:
     sbic PORTD, LASER_PIN
     ldi data_type, LASER_ON
     rcall send_data
+
+	ldi data_type, INFO
+	rcall send_data
 		
 	sei
     
@@ -201,6 +204,9 @@ main_procesar_comando:
 	cpi comando_recibido, ASK_STATE
 	breq comando_ask_state
 
+	cpi comando_recibido, ASK_INFO
+	breq comando_ask_info
+
     ; Para otros comandos, primero verificamos
     ; Si no hay alguna medición en curso
     cpi estado_medicion, WAIT_MEDIR
@@ -267,6 +273,10 @@ comando_ask_laser:
 
 comando_ask_state:
 	rcall rutina_comando_ask_state
+	rjmp main_loop
+
+comando_ask_info:
+	rcall rutina_comando_ask_info
 	rjmp main_loop
 
 comando_scan_row:

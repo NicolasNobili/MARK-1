@@ -51,6 +51,7 @@
 
 .equ MAX_STRING = 0xFF
 
+.equ DIVISOR_CONVERSION = 58 * 2
 
 ; ------------------------------------------------------
 ;                DIRECCIONES EEPROM

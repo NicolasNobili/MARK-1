@@ -269,7 +269,12 @@
           ctx.fillStyle = `rgb(0, 0, 0)`;
         } else {
           // Draw depth square
-          const u_scale = (longestDistance - value) / (longestDistance - closestDistance);
+          let u_scale;
+          if (longestDistance == closestDistance) {
+            u_scale = 0.5;
+          } else {
+            u_scale = (longestDistance - value) / (longestDistance - closestDistance);
+          }
           const val = 32 + Math.round(223 * u_scale);
           // @ts-ignore
           ctx.fillStyle = `rgb(${val + recency}, ${val - recency / 2}, ${val - recency / 2})`;
@@ -932,7 +937,7 @@
       </p>
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 900 }}>
         <span class="underline">Última medición:</span>
-        {p ? `${p / 29} cm` : ""}
+        {p ? `${p} cm` : ""}
       </p>
     {/key}
   </div>

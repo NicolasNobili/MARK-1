@@ -100,11 +100,17 @@ send_data:
 	cpi data_type, MEASURE_STATE
 	breq send_state
 
+	cpi data_type, INFO
+	breq send_info
+
     ; Si se llegó acá, no
     ; hace falta mandar bytes extra
     rjmp send_data_end
 
 send_measurement:
+	; Convertir a cm primero.
+	rcall convertir_a_cm
+
     ; Formato: STEPA, STEPB, LECTURAL, LECTURAH
     ; (Little-endian) 
     mov temp_byte, stepa
@@ -140,6 +146,29 @@ send_state:
 	rcall send_byte
 
 	rjmp send_data_end
+
+send_info:
+	; Leemos byte por byte en eeprom
+	ldy INFO_ADDR
+	ldi temp, MAX_STRING
+	mov loop_index, temp
+
+send_info_loop:
+	rcall eeprom_read
+	rcall send_byte
+
+	cpi temp_byte, 0
+	breq send_info_loop_end
+
+	dec loop_index
+	breq send_info_loop_end
+
+	ld temp, y+ ; incrementar y
+	rjmp send_info_loop
+
+send_info_loop_end:
+	rjmp send_data_end
+
 
 send_data_end:
     ret
@@ -275,7 +304,7 @@ rutina_comando_byte_write_info:
     ldi estado_comando, WAIT_BYTE
 
     ; Fijarse si es el null para terminar
-    cpi byte_recibido, 'f'
+    cpi byte_recibido, 0
     breq rutina_comando_byte_write_info_eeprom
 
     ; Fijarse si llegamos al límite de
@@ -343,6 +372,14 @@ rutina_comando_ask_laser:
 
 rutina_comando_ask_state:
 	ldi data_type, MEASURE_STATE
+	rcall send_data
+	ldi estado_comando, WAIT_COMMAND
+
+	ret
+
+
+rutina_comando_ask_info:
+	ldi data_type, INFO
 	rcall send_data
 	ldi estado_comando, WAIT_COMMAND
 
@@ -557,6 +594,26 @@ eeprom_write:
     ret
 
 
+; Usa temp_byte y el puntero Y
+; para la dirección
+eeprom_read:
+	; Esperar a una posible escritura en curso
+	sbic EECR, EEPE
+	rjmp eeprom_read
+
+	; Address de lectura
+	out EEARH, yh
+	out EEARL, yl
+
+	; Iniciar lectura
+	sbi EECR, EERE
+
+	; Byte leido
+	in temp_byte, EEDR
+
+	ret
+
+
 ; ------------------------------------------------------
 ;                  STEP UPS Y DOWNS
 ; ------------------------------------------------------
@@ -673,5 +730,104 @@ actualizar_OCR1B:
 
 	pop r1
 	pop r0
+    ret
+
+; ------------------------------------------------------
+;                  CONVERSION A CM
+; ------------------------------------------------------
+
+
+; Convierte los bytes lecturah:lectural a centimetros
+; mediante una division
+convertir_a_cm:
+	
+	; Divisor
+	push r18
+	push r19
+	ldi r18, low(DIVISOR_CONVERSION)
+	ldi r19, high(DIVISOR_CONVERSION)
+
+
+	; Dividendo
+	push r16
+	push r17
+    mov r16, lectural
+	mov r17, lecturah
+
+	rcall division_16bits
+
+	; Cociente
+	mov lectural, r16
+	mov lecturah, r17
+
+	pop r17
+	pop r16
+	pop r19
+	pop r18
+
+	ret
+
+
+; Fijarse los registros que utiliza
+division_16bits:
+    ; Algoritmo basado en:
+    ; https://www.microchip.com/en-us/application-notes?rv=1234aaef
+
+    ; Resto
+    push r14 ; Low
+    push r15 ; High
+
+    ; Cociente y Dividendo: r16 y r17
+
+    ; Divisor: r18 y r19 (low, high)
+
+    ; Contador auxiliar
+    push r20
+
+    ; Reiniciar resto y bit de carry
+    clr	r14
+	sub	r15, r15 ; Esto borra el carry
+	ldi	r20, 17 ; El loop itera una vez por bit
+
+division_16bits_1:
+    ; Tomar el bit más significativo del dividendo
+    ; y guardarlo en el carry
+    rol	r16
+	rol	r17
+	
+    ; Si ya recorrimos todos los bits terminamos
+    dec	r20
+	brne division_16bits_2
+    rjmp division_16bits_end
+
+division_16bits_2:
+    ; Mover el bit guardado en el carry a la posición
+    ; menos significativa del resto
+    rol	r14
+	rol	r15
+
+    ; Vemos si podemos restar un divisor al resto
+    ; actual
+	sub	r14, r18
+	sbc	r15, r19	
+
+    ; Si no se puede, volvemos a dejar el resto como estaba
+    ; Y ponemos un 0 en el resultado final (va al carry
+    ; y luego al registro r16)
+	brcc division_16bits_3
+	add	r14, r18
+	adc	r15, r19
+	clc
+	rjmp division_16bits_1
+
+    ; Si se pudo restar, en el resultado guardarmos un 1.
+division_16bits_3:
+    sec
+	rjmp division_16bits_1
+
+division_16bits_end:
+    pop r20
+    pop r15
+    pop r14
     ret
 

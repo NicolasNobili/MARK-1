@@ -1,3 +1,7 @@
+.def lectural = r21
+.def lecturah = r22
+.equ DIVISOR_CONVERSION = 30
+
 .cseg
 
 .org 0x0000
@@ -10,19 +14,47 @@ main:
     out spl, r16
 
     ; Dividend
-    ldi r17, high(10)
-    ldi r16, low(10)
+    ldi lecturah, high(200)
+    ldi lectural, low(200)
 
-    ; Divisor
-    ldi r19, high(3)
-    ldi r18, low(3)
-
-    rcall division_16bits
+    rcall convertir_a_cm
 
 end:
     rjmp end
 
 
+; Convierte los bytes lecturah:lectural a centimetros
+; mediante una division
+convertir_a_cm:
+	
+	; Divisor
+	push r18
+	push r19
+	ldi r18, low(DIVISOR_CONVERSION)
+	ldi r19, high(DIVISOR_CONVERSION)
+
+
+	; Dividendo
+	push r16
+	push r17
+    mov r16, lectural
+	mov r17, lecturah
+
+	rcall division_16bits
+
+	; Cociente
+	mov lectural, r16
+	mov lecturah, r17
+
+	pop r17
+	pop r16
+	pop r19
+	pop r18
+
+	ret
+
+
+; Fijarse los registros que utiliza
 division_16bits:
     ; Algoritmo basado en:
     ; https://www.microchip.com/en-us/application-notes?rv=1234aaef
@@ -31,13 +63,9 @@ division_16bits:
     push r14 ; Low
     push r15 ; High
 
-    ; Cociente y Dividendo
-    push r16 ; Low
-    push r17 ; High
+    ; Cociente y Dividendo: r16 y r17
 
-    ; Divisor
-    push r18 ; Low
-    push r19 ; High
+    ; Divisor: r18 y r19 (low, high)
 
     ; Contador auxiliar
     push r20
@@ -85,10 +113,6 @@ division_16bits_3:
 
 division_16bits_end:
     pop r20
-    pop r19
-    pop r18
-    pop r17
-    pop r16
     pop r15
     pop r14
     ret
