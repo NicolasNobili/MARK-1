@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { fade, fly } from "svelte/transition";
   import * as THREE from "three";
-  import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+  import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
   import { tweened } from "svelte/motion";
   import { cubicOut } from "svelte/easing";
   import { browser } from "$app/environment";
