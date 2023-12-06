@@ -26,6 +26,7 @@ default_info:
 .org SRAM_START
 
 buffer: .byte MAX_STRING
+lectura_ascii: .byte 4  ; El máximo es FFFF
 
 
 ; ------------------------------------------------------
@@ -96,14 +97,12 @@ main:
 
 main_loop:
 	
-    sei
     ; Solo dormir si no hay ni comandos
     ; ni mediciones pendientes
 	cpi estado_medicion, WAIT_MEDIR
 	brne main_loop_accion_pendiente
     cpi estado_comando, WAIT_COMMAND
     breq main_sleep
-    cli
 
 main_loop_accion_pendiente:
 

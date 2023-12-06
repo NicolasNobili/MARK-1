@@ -1,3 +1,133 @@
+.def min_distl = r21
+.def min_disth = r22
+.def temp = r16
+.def temp_byte = r17
+
+.macro ldx
+	ldi XL, LOW(@0)
+	ldi XH, HIGH(@0)
+.endmacro
+
+.macro ldy
+	ldi YL, LOW(@0)
+	ldi YH, HIGH(@0)
+.endmacro
+
+.macro ldz
+	ldi ZL, LOW(@0)
+	ldi ZH, HIGH(@0)
+.endmacro
+
+.dseg
+.org SRAM_START
+lectura_ascii: .byte 4
+
+.cseg
+
+.org 0x0000
+rjmp main
+
+main:
+    ldi r16, high(RAMEND)
+    out sph, r16
+    ldi r16, low(RAMEND)
+    out spl, r16
+
+    ; Dividend
+    ldi min_disth, high(0x12AB)
+    ldi min_distl, low(0x12AB)
+
+    rcall convertir_lectura_ascii
+
+end:
+    rjmp end
+
+; Convierte la mindisth:mindistl (16 bits)
+; a un string ASCII en RAM
+convertir_lectura_ascii:
+    ldx lectura_ascii
+
+    ; Nibble más significativo 0x?...
+    mov temp_byte, min_disth
+    andi temp_byte, 0xF0
+    swap temp_byte
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ; Nibble 0x.?..
+    mov temp_byte, min_disth
+    andi temp_byte, 0x0F
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ; Nibble 0x..?.
+    mov temp_byte, min_distl
+    andi temp_byte, 0xF0
+    swap temp_byte
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ; Nibble menos significativo 0x...?
+    mov temp_byte, min_distl
+    andi temp_byte, 0x0F
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ret
+
+; Convierte el byte en temp_byte a su dígito ASCII
+convertir_byte_ascii:
+    ; Para valores 0-9, sumar 0x30
+    cpi temp_byte, 9
+    brlo convertir_byte_sumar_30
+
+    ; Sino, sumar 0x41 - 0x0A
+    ldi temp, 0x41 - 0x0A
+    add temp_byte, temp
+
+    rjmp convertir_byte_ascii_end
+
+convertir_byte_sumar_30:
+    ldi temp, 0x30
+    add temp_byte, temp
+    
+convertir_byte_ascii_end:
+    ret
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 .equ GO_TO_SLEEP               = 0x00
 .equ SCANNING                  = 0x01
 .equ PRENDER_LASER             = 0x02

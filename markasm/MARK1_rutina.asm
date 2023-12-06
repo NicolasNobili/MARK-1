@@ -57,6 +57,9 @@ stop_timer2:
 ; ------------------------------------------------------
 
 send_trigger:
+    ; No interrumpir para tener un pulso exacto siempre
+    cli
+
 	; Limpiar flag de PCI2 y activar la interrupcion
     sbic PCIFR, PCIF2
 	sbi PCIFR, PCIF2
@@ -73,6 +76,7 @@ send_trigger_loop:
 	brne send_trigger_loop
 	cbi PORTD, ULTRASOUND_TRIG
 
+    sei
 	ret
 
 
@@ -82,6 +86,8 @@ send_trigger_loop:
 
 ; Se debe cargar previamente el registro data_type
 send_data:
+    cli
+
     ; Mandar primero el byte de tipo de dato
     mov temp_byte, data_type
     rcall send_byte
@@ -110,6 +116,9 @@ send_data:
 send_measurement:
 	; Convertir a cm primero.
 	rcall convertir_a_cm
+    ; Guardar en RAM el valor.
+    ; rcall convertir_lectura_ascii
+    ; Comentado porque es innecesario para nuestro proyecto.
 
     ; Formato: STEPA, STEPB, LECTURAL, LECTURAH
     ; (Little-endian) 
@@ -169,8 +178,8 @@ send_info_loop:
 send_info_loop_end:
 	rjmp send_data_end
 
-
 send_data_end:
+    sei
     ret
 
 
@@ -733,7 +742,7 @@ actualizar_OCR1B:
     ret
 
 ; ------------------------------------------------------
-;                  CONVERSION A CM
+;                       ARITMÉTICA
 ; ------------------------------------------------------
 
 
@@ -831,3 +840,54 @@ division_16bits_end:
     pop r14
     ret
 
+; Convierte la mindisth:mindistl (16 bits)
+; a un string ASCII en RAM
+convertir_lectura_ascii:
+    ldx lectura_ascii
+
+    ; Nibble más significativo 0x?...
+    mov temp_byte, lecturah
+    andi temp_byte, 0xF0
+    swap temp_byte
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ; Nibble 0x.?..
+    mov temp_byte, lecturah
+    andi temp_byte, 0x0F
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ; Nibble 0x..?.
+    mov temp_byte, lectural
+    andi temp_byte, 0xF0
+    swap temp_byte
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ; Nibble menos significativo 0x...?
+    mov temp_byte, lectural
+    andi temp_byte, 0x0F
+    rcall convertir_byte_ascii
+    st x+, temp_byte
+
+    ret
+
+; Convierte el byte en temp_byte a su dígito ASCII
+convertir_byte_ascii:
+    ; Para valores 0-9, sumar 0x30
+    cpi temp_byte, 9
+    brlo convertir_byte_sumar_30
+
+    ; Sino, sumar 0x41 - 0x0A
+    ldi temp, 0x41 - 0x0A
+    add temp_byte, temp
+
+    rjmp convertir_byte_ascii_end
+
+convertir_byte_sumar_30:
+    ldi temp, 0x30
+    add temp_byte, temp
+    
+convertir_byte_ascii_end:
+    ret

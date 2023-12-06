@@ -13,6 +13,7 @@
 ; Timer 0 solo se prende al iniciar comandos
 ; de MOVE TO o de ESCANEO.
 handler_OVF0:
+    push temp
     in temp, sreg
     push temp
 
@@ -94,6 +95,7 @@ objetivo_move_to:
 handler_OVF0_end:
     pop temp
     out sreg, temp
+    pop temp
     reti
 
 
@@ -102,6 +104,7 @@ handler_OVF0_end:
 ; ------------------------------------------------------
 
 handler_OVF2:
+    push temp
 	in temp,sreg
 	push temp
 	
@@ -110,6 +113,7 @@ handler_OVF2:
 handler_OVF2_end:
 	pop temp
 	out sreg,temp
+    pop temp
 	reti
 
 
@@ -119,6 +123,7 @@ handler_OVF2_end:
 
 ; Recepción de comandos
 handler_URXC:
+    push temp
     in temp, sreg
     push temp
 
@@ -155,6 +160,7 @@ handler_URXC_byte_extra_recibido:
 handler_URXC_end:
     pop temp
     out sreg, temp
+    pop temp
     reti
 
 
@@ -177,6 +183,7 @@ handler_INT0_end:
 ; ------------------------------------------------------
 
 handler_PCI2:
+    push temp
 	in temp,sreg
 	push temp
 
@@ -332,4 +339,5 @@ start_measure:
 handler_PCI0_end:
 	pop temp
 	out sreg, temp
+    pop temp
 	reti
