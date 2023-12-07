@@ -86,7 +86,7 @@
   let y = Math.round(M / 2);
   let smoothy = tweened(y, { easing: cubicOut });
   $: $smoothy = y;
-  $: pitch = ($smoothy / M) * Math.PI - Math.PI / 2;
+  $: pitch = ($smoothy / M) * Math.PI / 2;
   // $: if (model) model.rotation.x = pitch;
 
   // Measurement, depth
@@ -94,6 +94,9 @@
 
   // Laser status
   let laser = false;
+
+  // Information
+  let last_info = '';
 
   // Depth Map
   let screen: HTMLCanvasElement;
@@ -400,6 +403,7 @@
         case Data.Info:
           // Find null character
           const idx = rx_queue.indexOf(0);
+          last_info = String.fromCharCode.apply(null, rx_queue.slice(1, idx));
           if (idx >= 0) {
             busy = false;
             bytes_to_flush = idx + 1;
@@ -939,6 +943,10 @@
       <p class="text-lg" in:fly={{ x: -30, duration: 500, delay: 900 }}>
         <span class="underline">Última medición:</span>
         {p ? `${p} cm` : ""}
+      </p>
+      <p class="text-lg" in:fly={{ x: -30, duration: 600, delay: 900 }}>
+        <span class="underline">Mensaje:</span>
+        {last_info}
       </p>
     {/key}
   </div>
