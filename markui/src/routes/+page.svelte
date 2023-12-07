@@ -7,6 +7,7 @@
   import { cubicOut } from "svelte/easing";
   import { browser } from "$app/environment";
   import { flip } from "svelte/animate";
+  import { base } from "$app/paths";
 
   interface DataType {
     content: number[];
@@ -77,7 +78,7 @@
   let x = Math.round(N / 2);
   let smoothx = tweened(x, { easing: cubicOut });
   $: $smoothx = x;
-  $: yaw = ($smoothx / N) * Math.PI + Math.PI / 2;
+  $: yaw = -($smoothx / N) * Math.PI - Math.PI / 2;
   // $: if (model) model.rotation.z = yaw;
 
   // Angle B
@@ -611,7 +612,7 @@
 
     // Load Head Model
     loader.load(
-      "/cutemark-Head/cutemark-Head.gltf",
+      base + "/cutemark-Head/cutemark-Head.gltf",
       function (gltf) {
         model_head = gltf.scene.children[0];
         model_head.traverse((child) => {
@@ -639,7 +640,7 @@
 
     // Load Base Model
     loader.load(
-      "/cutemark-Base/cutemark-Base.gltf",
+      base + "/cutemark-Base/cutemark-Base.gltf",
       function (gltf) {
         model_base = gltf.scene.children[0];
         model_base.traverse((child) => {
