@@ -13,8 +13,10 @@
 .equ CLK_FREQUENCY = 16000000
 
 .equ PWM_PERIOD_US  = 20000
-.equ PWM_MAX_TON_US = 2500
-.equ PWM_MIN_TON_US = 500
+.equ PWM_MAX_TON_US_A = 2500
+.equ PWM_MIN_TON_US_A = 500
+.equ PWM_MAX_TON_US_B = 1700
+.equ PWM_MIN_TON_US_B = 500
 
 .equ BAUD_RATE = 9600
 
@@ -26,16 +28,16 @@
 .equ MAX_STEPA = 20  ; Hay MAX_STEPA estados más el 0 = MAX_STEPA + 1 estados
 .equ MAX_STEPB = 20  ; Hay MAX_STEPB estados más el 0 = MAX_STEPB + 1 estados
 .equ STEPA_INICIAL = 10
-.equ STEPB_INICIAL = 10
+.equ STEPB_INICIAL = 0
 
 .equ TOP_PWM = int( (CLK_FREQUENCY/8) * PWM_PERIOD_US / (2 * 1000000) ) ; del datasheet
 
-.equ MAX_OCR1A  = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US / PWM_PERIOD_US)
-.equ MIN_OCR1A  = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US / PWM_PERIOD_US)
+.equ MAX_OCR1A  = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US_A / PWM_PERIOD_US)
+.equ MIN_OCR1A  = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US_A / PWM_PERIOD_US)
 .equ STEP_OCR1A = (MAX_OCR1A - MIN_OCR1A) / MAX_STEPA
 
-.equ MAX_OCR1B  = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US / PWM_PERIOD_US) 
-.equ MIN_OCR1B  = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US / PWM_PERIOD_US)
+.equ MAX_OCR1B  = int(TOP_PWM - TOP_PWM * PWM_MIN_TON_US_B / PWM_PERIOD_US) 
+.equ MIN_OCR1B  = int(TOP_PWM - TOP_PWM * PWM_MAX_TON_US_B / PWM_PERIOD_US)
 .equ STEP_OCR1B = (MAX_OCR1B - MIN_OCR1B) / MAX_STEPB ; si llegaste acá, elegí valores que den todo entero bro
 
 .equ UBRR0 = int( CLK_FREQUENCY / (16 * BAUD_RATE) - 1 )
