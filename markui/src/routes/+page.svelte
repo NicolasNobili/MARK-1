@@ -251,6 +251,10 @@
 
     const ctx = screen.getContext("2d");
 
+    if (ctx === null) {
+      return
+    }
+
     // Black background
     // // @ts-ignore
     // ctx.globalAlpha = 1.0;
